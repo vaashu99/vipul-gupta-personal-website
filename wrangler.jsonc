@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vipul-gupta-personal-website",
+  "compatibility_date": "2026-10-04",
+  // Publish only the website files, keeping repository files private.
+  "assets": {
+    "directory": "./public"
+  }
+}
