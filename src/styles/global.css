@@ -1,23 +1,4 @@
 :root {
-  --color-bg: #f0f7fc;
-  --color-surface: #f9fcff;
-  --color-ink: #17334a;
-  --color-muted: #496477;
-  --color-accent: #195a8a;
-  --color-accent-hover: #114872;
-  --color-on-accent: #fff;
-  --color-sage: #e2eff8;
-  --color-border: #c0d4e2;
-  --color-gold: #805a26;
-  --color-outline: #688397;
-  --font-display: Georgia, 'Times New Roman', serif;
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --radius: 6px;
-  --container-width: 1180px;
-  color-scheme: light;
-}
-
-:root[data-theme='charcoal'] {
   --color-bg: #0f171e;
   --color-surface: #162129;
   --color-ink: #f6f4ef;
@@ -29,7 +10,40 @@
   --color-border: #3b5059;
   --color-gold: #f1c58b;
   --color-outline: #7d939c;
+  --color-journal-bg: #251f32;
+  --color-journal-ink: #f8f2ff;
+  --color-journal-muted: #dbcae8;
+  --color-journal-accent: #dfb9ff;
+  --color-journal-hover: #f0ddff;
+  --color-journal-on-accent: #271b36;
+  --color-journal-border: #665071;
+  --font-display: Georgia, 'Times New Roman', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --radius: 6px;
+  --container-width: 1180px;
   color-scheme: dark;
+}
+
+:root[data-theme='ocean'] {
+  --color-bg: #f0f7fc;
+  --color-surface: #f9fcff;
+  --color-ink: #17334a;
+  --color-muted: #496477;
+  --color-accent: #195a8a;
+  --color-accent-hover: #114872;
+  --color-on-accent: #fff;
+  --color-sage: #e2eff8;
+  --color-border: #c0d4e2;
+  --color-gold: #805a26;
+  --color-outline: #688397;
+  --color-journal-bg: #f0e9f7;
+  --color-journal-ink: #3d254b;
+  --color-journal-muted: #655274;
+  --color-journal-accent: #703b8b;
+  --color-journal-hover: #512367;
+  --color-journal-on-accent: #fff;
+  --color-journal-border: #cbbbd8;
+  color-scheme: light;
 }
 
 * {
@@ -139,6 +153,18 @@ button:disabled {
 
 [hidden] {
   display: none !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .container {
@@ -915,6 +941,13 @@ button:disabled {
     --color-border: #bbb;
     --color-gold: #735328;
     --color-outline: #555;
+    --color-journal-bg: #fff;
+    --color-journal-ink: #111;
+    --color-journal-muted: #333;
+    --color-journal-accent: #3d254b;
+    --color-journal-hover: #271b36;
+    --color-journal-on-accent: #fff;
+    --color-journal-border: #bbb;
     color-scheme: light;
   }
 

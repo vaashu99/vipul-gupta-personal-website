@@ -149,6 +149,19 @@ const articleKey = Astro.url.pathname.replace(/^\/+|\/+$/g, '');
     height: auto;
     border-radius: 8px;
   }
+  .article-prose :global(figure) {
+    margin-block: 2rem;
+  }
+  .article-prose :global(figure img) {
+    display: block;
+    width: 100%;
+  }
+  .article-prose :global(figcaption) {
+    margin-top: 0.75rem;
+    color: var(--color-muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
   .article-prose :global(a) {
     text-decoration: underline;
     text-underline-offset: 0.2em;

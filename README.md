@@ -40,7 +40,7 @@ If Google Chrome is installed, use `PLAYWRIGHT_BROWSER_CHANNEL=chrome npm test` 
 
 The separate `test:journal` command temporarily creates test posts, builds them to an isolated temporary directory, checks article publishing and sharing, then removes the fixtures and restores the normal build.
 
-The browser suite checks production output, mobile/desktop layouts, navigation, keyboard use, journal filters, resume fidelity/privacy, printing, 404s and axe accessibility findings. CI runs these gates; remote CI has not been run for local changes.
+The browser suite checks production output, mobile/desktop layouts, navigation, keyboard use, journal filters, resume fidelity/privacy, printing, 404s and axe accessibility findings. CI runs these gates on pushes to main and pull requests. Local checks and production verification are recorded in [the test report](docs/test-report.md); source-control builds are tracked independently from the direct Worker deployment.
 
 ## Structure
 
@@ -67,13 +67,13 @@ Follow [the blog authoring guide](docs/blog-authoring.md). Create a Markdown fil
 
 ## Resume privacy
 
-The original supplied PDF stays outside the repository. It contains personal details that must not be published. The Experience page provides a printable professional resume; print it or use your browser's Save as PDF. The website does not publish phone, address, birth date, nationality, visa details or certificate ID. Public contact links are LinkedIn and GitHub; visitors can also send messages through the website chat without an email account.
+The original supplied PDF stays outside the repository. It contains personal details that must not be published. The Experience page provides a printable professional resume; print it or use your browser's Save as PDF. The website does not publish phone, address, birth date, nationality, visa details or certificate ID. Public contact links are LinkedIn and GitHub; visitors can also send messages through the website chat by supplying their name and either an email address or phone number. Sender details stay private to the conversation and authenticated owner inbox; replies are read in the original browser, with no automatic email or SMS notifications.
 
 ## Cloudflare deployment (after local approval)
 
 The existing Worker name is preserved: `vipul-gupta-personal-website`. `wrangler.jsonc` runs `npm run build` and publishes the Worker plus public assets from `dist/`, with real 404 handling. The dashboard deploy command can remain `npx wrangler deploy`; leave the dashboard build command empty to avoid building twice. Its build environment must use a supported Node version, preferably 24.
 
-Astro still generates static HTML; the Worker implements the interactive endpoints without an Astro server adapter. The website is live at https://vipulgupta.tech, with production D1 configured for visitor chat and shared reactions. Cloudflare Access and the exact owner email still need configuration: follow [the setup guide](docs/interaction-setup.md) to enable inbox sign-in and replies. The live inbox stays locked until verified owner authorization is configured. Do not push local changes until publication is requested: the connected production branch may automatically deploy. Future explicit deployment can use `npm run deploy` or the connected Git workflow. DNS/custom-domain ownership is independent of this source update.
+Astro still generates static HTML; the Worker implements the interactive endpoints without an Astro server adapter. The website is live at https://vipulgupta.tech, with production D1 configured for visitor chat and shared reactions. Cloudflare Access and the exact owner email still need configuration: follow [the owner inbox setup guide](docs/owner-inbox-setup.md) to enable inbox sign-in and replies. The live inbox stays locked until verified owner authorization is configured. Do not push local changes until publication is requested: the connected production branch may automatically deploy. Future explicit deployment can use `npm run deploy` or the connected Git workflow. DNS/custom-domain ownership is independent of this source update.
 
 ## Later features
 
@@ -81,4 +81,4 @@ Photo collections, public case studies and a separately approved downloadable PD
 
 ## Themes and images
 
-Use the header Theme chooser for Ocean (default) or Charcoal. The preference is saved locally in the browser; print keeps white paper backgrounds. The homepage portrait links to a full-resolution public image. The infinity artwork is a decorative background in the Experience introduction. See [image enhancement provenance and prompts](docs/image-enhancements.md).
+Use the header Theme chooser for Charcoal (default) or Ocean. The preference is saved locally in the browser; print keeps white paper backgrounds. The homepage portrait links to a full-resolution public image. The infinity artwork is a decorative background in the Experience introduction. See [image enhancement provenance and prompts](docs/image-enhancements.md).

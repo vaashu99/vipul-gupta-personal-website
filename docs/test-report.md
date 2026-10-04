@@ -1,46 +1,58 @@
 # Website verification
 
-Status: Deployment preparation for Specifications 006, 007 and 008. Full frontend verification is authorized by the user's deployment request. These results verify local production output; they do not establish a successful deployment, DNS change or production authorization.
+Status: **Specification 010 predeployment gates passed on 5 October 2026 (Singapore time).** These results cover the new local production build. Publishing this update and its live smoke verification are still pending. The previous release remains live; owner Cloudflare Access setup and successful owner sign-in remain unverified.
 
-## Results
+## Current results
 
-- Website acceptance: **88/88 tests passed** in 1.2 minutes on isolated port 4323, without retries. The combined frontend result is **135 passing cases** (88 website plus 47 article fixtures).
-- Journal and Tech publishing/sharing: **47/47 tests passed** in 19.7 seconds against an isolated fixture build on port 4322, without retries. Both independent collections, every current Journal category, nested slugs, newest-first sorting, default drafts, explicit drafts and future publication gates are covered. Existing real Tech content hashes stayed unchanged.
-- Accessibility: the article fixture suite completed **12 axe scans with zero violations** across both themes, desktop/mobile layouts and loaded reaction controls. The website suite completed **53 additional zero-violation scans**: 12 routes across two themes and mobile/desktop widths, one printed resume, and four loaded chat/inbox presentations. **65 scans total** passed. Scans check WCAG A/AA and best practices at every severity.
-- Exact career dates: GXS Lead SRE Engineer begins **April 2025**; preceding Senior role runs **March 2022 through March 2025**. Independent entries retain role-specific responsibilities and a single 25 percent AWS cost achievement. NUS and historical Red Hat credential dates remain explicit.
-- Theme coverage: Ocean is the default; Ocean and Charcoal are the only choices. Selection survives navigation/reloads, warm and invalid saved values migrate to Ocean, and blocked local storage leaves controls usable. Contrast checks wait for actual CSS transitions to finish before measuring the selected palette.
-- Imagery/motion: responsive portrait derivatives and full-size image decode without crop or viewport clipping. Public WebP metadata is checked for EXIF, XMP and ICC chunks. DevOps is a real multi-frame GIF with keyboard pause/resume and correct reduced-motion/no-JavaScript fallback; print omits the GIF and decorative infinity background.
-- Navigation/content: Tech, the revised Journal categories, My Space anchors and preserved Photos gallery are covered. Existing professional posts distinguish website publication from July 2026 course completion. My Space and Journal remain honestly unpublished.
-- Dynamic UI contracts: mocked chat/inbox responses test literal message rendering, composer access, mobile fit and both-theme accessibility. Mocked reaction responses test keyboard vote/remove requests, returned counts, save errors, retry and invalid data. These browser mocks prove presentation behavior, not D1 persistence or authorization. The separate real Worker/D1 runner owns those guarantees.
-- Backend verification: the separate source-level Worker/D1 runner passed **19 integration cases**. This evidence is separate from the 135 frontend cases and mocked browser API contracts. Production Cloudflare Access authorization and deployment remain parent workflow gates.
-- Sharing: native share success/cancellation/failure, clipboard success/denial/unavailability and no-JavaScript manual links are covered. Canonical LinkedIn/email links remain; dedicated WhatsApp markup is absent. Native device interfaces and browser permission dialogs are simulated.
-- Honest API errors: static preview cannot claim delivered messages or invent shared counts when APIs are absent; articles show an unavailable/retry state instead.
-- Fixture cleanup: exclusive marked fixtures and temporary output are removed in `finally`; normal 12-page output is rebuilt and scanned for QA strings/routes. Real content SHA-256 hashes are verified unchanged. Review preview on port 4321 is preserved.
-- Source defects corrected before final verification: homepage recent-posts used the infinity artwork/dark overrides despite the required theme palette; root restored shared tokens. Floating chat lacked a landmark; root added labelled contact navigation. No accessibility rules were suppressed.
-- Visual evidence: refreshed Ocean/Charcoal Home (desktop/mobile), Experience, My Space and the real NUS article were captured locally. The diagnostic resume remains **three A4 pages**; the testing agent inspected every page and found no clipping, overlap or orphan headings. Both GXS roles occupy page one, previous employers page two and skills/education/credentials page three. The parent approved Ocean desktop, My Space, both-theme QA articles, Experience, all print pages and independently scrolled fresh mobile captures. One full-page mobile capture produced compositor repetition after resizing a desktop page; that capture is excluded. Fresh mobile contexts show a single correct layout and a fully decoded portrait. Approved mobile evidence is `home-{ocean,charcoal}-mobile-{top,portrait,focus,personal}.png` and fresh full-page captures.
+- Website acceptance: **102/102 cases passed** in 1.0 minute on isolated port 4323 with **retries disabled**. The previous 88 cases were retained and updated where requirements changed; 14 new cases cover Specification 010.
+- Journal/Tech articles: **47/47 cases passed** in 18.5 seconds on isolated port 4322 with **retries disabled**, no failures or flaky results. Publishing gates, nested paths, listing filters/order, metadata/sitemaps, sharing fallbacks, no-JavaScript guidance and reaction UI contracts remain covered.
+- Combined frontend result: **149 passing cases**, superseding the previous release's 135-case result. Both complete suites were rerun for this revision.
+- Accessibility: **65 axe scans passed with zero violations at every severity**. This includes 12 routes at mobile/desktop widths in Ocean and Charcoal (48 scans), printed resume (1), loaded chat/inbox presentations in both themes (4), article layouts (8) and loaded/selected reaction controls (4). No rules were suppressed.
+- Separate backend evidence: the parent/backend agent reported **25 passing real Worker/D1 integration cases**, covering the additive sender migration, legacy conversation preservation, sender validation/isolation, authorization and first-thread rollback. These results are separate from mocked frontend API contracts and do not establish production Access sign-in.
+
+## Specification 010 coverage
+
+- Charcoal is the default for fresh visits, no-JavaScript output, invalid/Warm preferences and blocked storage. Explicit Ocean remains saved across navigation and reloads; both palettes retain contrast, focus and responsive checks. Print remains light.
+- New chat requires a name and valid email or telephone before posting. Tests verify invalid inputs send no request, contact-field mode changes correctly, the posted sender contract is trimmed, and details do not enter the URL or local storage. Message delivery is explicitly asynchronous in the same browser.
+- Legacy chats remain readable without inferred identity. Identified chats prefill saved details. Email/phone drafts, edited sender fields and unsent messages survive manual refresh and clock-driven polling. Failed sends preserve drafts for retry.
+- Private inbox renders identified and unidentified labels, contact details and message text safely. Valid contacts use encoded mailto/tel links; synthetic HTML/script contact values stay plain text without generated elements or execution. Browser mocks model the localhost health endpoint as well as inbox APIs, so available-backend scenarios use a complete contract.
+- Homepage section 03 is Journal with a distinct, readable palette and links to all four current categories. Section 04 leads to My Space. My Space exposes exactly the supplied YouTube, X/Twitter, Instagram and Facebook destinations, with safe new-tab links and no third-party SDK requests.
+- The GitLab article includes exactly four captioned event figures with meaningful alternative text. At 375, 768 and 1440 pixels, assets decode to their declared intrinsic dimensions, retain their proportions and fit the viewport. WebP chunks contain no EXIF, XMP or ICC metadata. Prose and description identify Earning the Right to Autonomy, Rasa Space and **24 September 2026**; the **4 October website publication date** is distinct, and the article explicitly describes prepared reflections rather than a transcript.
+- Existing coverage remains: exact April 2025/March 2025 career dates and responsibility ownership; one source-backed AWS cost metric; dated credentials; responsive/full-resolution portrait; real multi-frame GIF with keyboard pause/resume and reduced-motion/no-JavaScript fallback; metadata/canonical URLs; navigation/skip links; genuine 404s; private-asset and tracker/font-provider exclusions.
+
+The parent visually approved the revised Journal section, social profiles, event gallery and mobile sender form before these gates. Current print contrast/visibility checks passed; the previously reviewed three-page resume is historical pagination evidence, with no resume-content change in this revision.
+
+## Reliability and cleanup
+
+The first article attempt had one retry-only pass after navigation consumed its test budget; no POST occurred in that failed trace. The mocked reaction test now waits for DOMContentLoaded and explicitly awaits loaded controls, counts, save states, request bodies and accessibility. The clean 47-case rerun disabled retries.
+
+The first website run found a stale chooser-order assertion and three partial inbox-mock races: localhost health returned a static 404 and hid the simulated available inbox. Supported palettes are now checked independent of order and available-inbox mocks include health. All source behavior assertions remain intact; the corrected 102-case rerun disabled retries.
+
+Exclusive marked fixtures and temporary output were removed in `finally`. Real content SHA-256 hashes stayed unchanged, normal 12-page output was restored and QA strings/routes were absent. Ports 4322 and 4323 were stopped; the review preview on port 4321 was preserved. Frontend checks sent no messages or votes to a live service.
 
 ## Reproduction
-
-Use an isolated preview so the full local review Worker on port 4321 remains available:
 
 ```sh
 npm run check
 npm run format:check
 npm run build
-CI=1 PLAYWRIGHT_PORT=4323 PLAYWRIGHT_BROWSER_CHANNEL=chrome npm test
-CI=1 PLAYWRIGHT_BROWSER_CHANNEL=chrome npm run test:journal
+CI=1 PLAYWRIGHT_PORT=4323 PLAYWRIGHT_BROWSER_CHANNEL=chrome npm test -- --retries=0
+CI=1 JOURNAL_TEST_RETRIES=0 PLAYWRIGHT_BROWSER_CHANNEL=chrome npm run test:journal
+npm run test:interactions
 ```
 
-The normal suite starts and stops Astro preview in the foreground using `--ignore-lock`. Fixture tests use portable operating-system temporary output, port 4322 and guaranteed cleanup/restoration. `PLAYWRIGHT_BROWSER_CHANNEL=chrome` selects installed Chrome; CI may use the default Playwright Chromium after installing its browser.
+The normal suite starts/stops Astro preview using `--ignore-lock`. Article fixtures use portable temporary output and guaranteed cleanup/restoration. Installed Chrome was selected locally; default CI may use Playwright Chromium after installing its browser. The optional article retry override leaves ordinary CI defaults unchanged.
 
-Evidence logs are `/private/tmp/vipul-website-deployment-final-tests.log` and `/private/tmp/vipul-article-final-tests.log`. Screenshots and the diagnostic `resume-deployment-print.pdf` are under `/private/tmp/vipul-site-review/`; these artifacts are outside public build output.
-
-The browser suite scans 12 routes (including both actual professional articles, chat/inbox presentation and a true 404), checks metadata/canonical URLs and tests responsive overflow at 375, 768 and 1440 pixels in both themes. Mobile keyboard navigation, Escape/focus restoration, skip links, print controls, private-asset labels and tracker/font-provider exclusion remain covered.
+Final logs: `/private/tmp/vipul-website-spec010-final-tests.log` and `/private/tmp/vipul-article-spec010-final-tests.log`. Fixture article review screenshots were refreshed under `/private/tmp/vipul-site-review/`; these artifacts stay outside public output.
 
 ## Limits
 
-Automated axe scans do not replace assistive-technology testing. Static inbox markup scans do not prove inbox authorization; the Worker must protect both the document and APIs before publishing. Native sharing, clipboard outcomes and frontend API success/error responses are simulated. No messages or votes were sent to a live service by these frontend tests. Production deployment, D1 provisioning, Cloudflare Access and public smoke checks belong to the parent deployment workflow.
+Axe does not replace assistive-technology testing. Native sharing/clipboard outcomes and frontend API responses are simulated. Static inbox presentation and browser mocks do not establish authorization or server persistence; the real Worker/D1 suite tests those independently. Production owner access still requires the exact owner email and verified Cloudflare Access issuer/audience/app policy. Do not claim owner sign-in or replies work until that configuration and live workflow are verified. Specification 010 deployment and live smoke checks belong to the parent release workflow.
 
-## Production smoke verification
+## Historical production smoke verification — initial release
 
 The parent published the tested release to https://vipulgupta.tech on 5 October 2026 (Singapore time), using a new dedicated D1 database with both migrations. Live HTTPS checks passed for all ten public pages, approved images/animation, sitemap, real reaction-count reads, empty visitor chat reads, secure cookie flags and true unknown-route 404s. All checked private inbox routes/API/encoded aliases returned a no-store denial without exposing inbox HTML. No production test messages or votes were created. Exact owner email and Cloudflare Access configuration remain pending; owner sign-in and replies have not been live-verified. See specification 009 for deployment evidence.
+
+## Production smoke verification — Specification 010
+
+The parent published Specification 010 to https://vipulgupta.tech on 5 October 2026 (Singapore time). Production migration 0003 succeeded and preserved the existing database. Sixteen GET-only live checks passed for Charcoal homepage/Journal sections, required chat sender fields, four exact social links, the expanded GitLab article and four WebP photos, configured database health, empty visitor chat and reaction counts, and no-store denials for five inbox/API/encoded aliases. No messages or votes were written. Owner sign-in/replies remain pending exact email and Cloudflare Access configuration. See Specification 010 for the directly deployed Worker version. The connected source-control pipelines are verified separately by the release workflow.

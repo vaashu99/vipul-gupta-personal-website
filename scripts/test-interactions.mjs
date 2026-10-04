@@ -94,7 +94,23 @@ async function runtime(name, bindings, database = true, initialize = true) {
   await mf.ready;
   if (database && initialize) {
     const db = await mf.getD1Database('SITE_DB');
-    for (const filename of ['0001_reactions.sql', '0002_chat.sql']) {
+    for (const filename of [
+      '0001_reactions.sql',
+      '0002_chat.sql',
+      '0003_chat_sender_details.sql',
+    ]) {
+      if (name === 'local' && filename === '0003_chat_sender_details.sql') {
+        await db
+          .prepare('INSERT INTO chat_threads (id, visitor_key) VALUES (?, ?)')
+          .bind(legacyThreadId, legacyVisitorId)
+          .run();
+        await db
+          .prepare(
+            'INSERT INTO chat_messages (thread_id, sender, content) VALUES (?, ?, ?)',
+          )
+          .bind(legacyThreadId, 'visitor', 'Preserved legacy message')
+          .run();
+      }
       const sql = (
         await readFile(join(root, 'migrations', filename), 'utf8')
       ).replace(/--[^\n]*/g, '');
@@ -140,6 +156,18 @@ async function request(
       : null,
   };
 }
+const senderA = {
+  name: 'Visitor Alpha',
+  contactType: 'email',
+  contactValue: 'alpha@example.test',
+};
+const senderB = {
+  name: '访客 Beta',
+  contactType: 'phone',
+  contactValue: '+65 9123 4567',
+};
+const legacyVisitorId = randomUUID();
+const legacyThreadId = randomUUID();
 const reactionPath = '/api/reactions?article=tech/published';
 const cookieFrom = (result) => result.headers.get('Set-Cookie')?.split(';')[0];
 const visitorCookie = () => `vg_visitor=${randomUUID()}`;
@@ -350,17 +378,22 @@ try {
     'chat creates cookie-scoped conversations and preserves message text',
     async () => {
       const before = await request(local, '/api/chat', { cookie: visitorA });
-      assert.deepEqual(before.body, { threadId: null, messages: [] });
+      assert.deepEqual(before.body, {
+        threadId: null,
+        sender: null,
+        messages: [],
+      });
       const content = '<script>alert("xss")</script> Hello & welcome';
       const result = await request(local, '/api/chat', {
         cookie: visitorA,
-        body: { message: content, threadId: 'ignored' },
+        body: { message: content, threadId: 'ignored', sender: senderA },
       });
       assert.equal(result.status, 200, result.text);
       threadA = result.body.threadId;
       assert.match(threadA, /^[a-f\d-]{36}$/);
       assert.equal(result.body.messages[0].content, content);
       assert.equal(result.body.messages[0].sender, 'visitor');
+      assert.deepEqual(result.body.sender, senderA);
       assert.equal(typeof result.body.messages[0].id, 'number');
       assert.equal(
         result.headers.get('Content-Type'),
@@ -374,14 +407,22 @@ try {
       const empty = await request(local, `/api/chat?thread=${threadA}`, {
         cookie: visitorB,
       });
-      assert.deepEqual(empty.body, { threadId: null, messages: [] });
+      assert.deepEqual(empty.body, {
+        threadId: null,
+        sender: null,
+        messages: [],
+      });
       const result = await request(local, '/api/chat', {
         cookie: visitorB,
-        body: { message: 'Browser B only', threadId: threadA },
+        body: { message: 'Browser B only', threadId: threadA, sender: senderB },
       });
       assert.notEqual(result.body.threadId, threadA);
+      assert.deepEqual(result.body.sender, senderB);
+      assert.ok(!JSON.stringify(result.body).includes(senderA.contactValue));
       const readA = await request(local, '/api/chat', { cookie: visitorA });
       assert.equal(readA.body.messages.length, 1);
+      assert.deepEqual(readA.body.sender, senderA);
+      assert.ok(!JSON.stringify(readA.body).includes(senderB.contactValue));
       assert.ok(!JSON.stringify(readA.body).includes('Browser B only'));
     },
   );
@@ -390,12 +431,17 @@ try {
     async () => {
       const threads = await request(local, '/api/inbox/threads');
       assert.equal(threads.status, 200);
-      assert.equal(threads.body.threads.length, 2);
+      assert.equal(threads.body.threads.length, 3);
+      assert.deepEqual(
+        threads.body.threads.find((thread) => thread.id === threadA).sender,
+        senderA,
+      );
       const reply = await request(local, '/api/inbox/messages', {
         body: { threadId: threadA, message: 'Thanks for reaching out.' },
       });
       assert.equal(reply.status, 200);
       assert.equal(reply.body.messages.at(-1).sender, 'owner');
+      assert.deepEqual(reply.body.sender, senderA);
       assert.equal(
         (
           await request(local, '/api/chat', { cookie: visitorA })
@@ -570,7 +616,7 @@ try {
         (
           await request(local, '/api/chat', {
             cookie,
-            body: { message: `Burst ${i}` },
+            body: { message: `Burst ${i}`, sender: senderA },
           })
         ).status,
         200,
@@ -591,7 +637,10 @@ try {
       const cookie = visitorCookie();
       const replies = await Promise.all(
         ['First parallel message', 'Second parallel message'].map((message) =>
-          request(local, '/api/chat', { cookie, body: { message } }),
+          request(local, '/api/chat', {
+            cookie,
+            body: { message, sender: senderA },
+          }),
         ),
       );
       assert.ok(replies.every((reply) => reply.status === 200));
@@ -610,7 +659,7 @@ try {
       const cookie = visitorCookie();
       const created = await request(local, '/api/chat', {
         cookie,
-        body: { message: 'Initial history message' },
+        body: { message: 'Initial history message', sender: senderA },
       });
       const db = await local.getD1Database('SITE_DB');
       await db.batch(
@@ -663,6 +712,224 @@ try {
         ).status,
         503,
       );
+    },
+  );
+  await scenario(
+    'additive sender migration preserves unidentified legacy conversations',
+    async () => {
+      const cookie = `vg_visitor=${legacyVisitorId}`;
+      const legacy = await request(local, '/api/chat', { cookie });
+      assert.equal(legacy.status, 200);
+      assert.equal(legacy.body.threadId, legacyThreadId);
+      assert.equal(legacy.body.sender, null);
+      assert.equal(legacy.body.messages.length, 1);
+      assert.equal(legacy.body.messages[0].content, 'Preserved legacy message');
+      const inbox = await request(
+        local,
+        `/api/inbox/messages?thread=${legacyThreadId}`,
+      );
+      assert.equal(inbox.body.sender, null);
+      const denied = await request(local, '/api/chat', {
+        cookie,
+        body: { message: 'Missing sender' },
+      });
+      assert.equal(denied.status, 400);
+      const identified = await request(local, '/api/chat', {
+        cookie,
+        body: { message: 'New identified message', sender: senderB },
+      });
+      assert.equal(identified.status, 200, identified.text);
+      assert.equal(identified.body.threadId, legacyThreadId);
+      assert.deepEqual(identified.body.sender, senderB);
+      assert.equal(identified.body.messages.length, 2);
+      assert.equal(
+        identified.body.messages[0].content,
+        'Preserved legacy message',
+      );
+    },
+  );
+  await scenario(
+    'new conversations require complete valid sender details without creating rejected threads',
+    async () => {
+      const invalid = [
+        undefined,
+        null,
+        [],
+        {},
+        { ...senderA, name: '' },
+        { ...senderA, name: 'x'.repeat(101) },
+        { ...senderA, name: 'Bad\u0000Name' },
+        { ...senderA, name: 'Bad\u0085Name' },
+        { ...senderA, name: 'Bad\u202eName' },
+        { ...senderA, contactType: 'fax' },
+        { ...senderA, contactValue: '' },
+        { ...senderA, contactValue: 'missing-domain' },
+        { ...senderA, contactValue: 'bad@example' },
+        { ...senderA, contactValue: 'bad@@example.test' },
+        { ...senderA, contactValue: '<bad>@example.test' },
+        { ...senderA, contactValue: 'x'.repeat(250) + '@example.test' },
+        {
+          ...senderA,
+          contactValue: 'bad@example.test\r\nBcc: attacker@example.test',
+        },
+        { ...senderB, contactValue: '123456' },
+        { ...senderB, contactValue: '1'.repeat(21) },
+        { ...senderB, contactValue: '+65 call now' },
+        { ...senderB, contactValue: '+65\u202e91234567' },
+        { ...senderB, contactValue: '+65' + ' '.repeat(51) + '91234567' },
+      ];
+      for (const sender of invalid) {
+        const cookie = visitorCookie();
+        const denied = await request(local, '/api/chat', {
+          cookie,
+          body: {
+            message: 'Rejected message',
+            ...(sender === undefined ? {} : { sender }),
+          },
+        });
+        assert.equal(denied.status, 400);
+        assert.deepEqual((await request(local, '/api/chat', { cookie })).body, {
+          threadId: null,
+          sender: null,
+          messages: [],
+        });
+      }
+    },
+  );
+  await scenario(
+    'identified senders reuse saved contact details and can update their own profile',
+    async () => {
+      const cookie = visitorCookie();
+      const initial = await request(local, '/api/chat', {
+        cookie,
+        body: {
+          message: 'Initial profile',
+          sender: {
+            ...senderA,
+            name: '  Δοκιμή 访客  ',
+            contactValue: '  alpha@example.test  ',
+          },
+        },
+      });
+      assert.equal(initial.status, 200, initial.text);
+      const stored = { ...senderA, name: 'Δοκιμή 访客' };
+      assert.deepEqual(initial.body.sender, stored);
+      const reused = await request(local, '/api/chat', {
+        cookie,
+        body: { message: 'Reuse profile' },
+      });
+      assert.equal(reused.status, 200);
+      assert.deepEqual(reused.body.sender, stored);
+      const updated = await request(local, '/api/chat', {
+        cookie,
+        body: { message: 'Update contact', sender: senderB },
+      });
+      assert.equal(updated.status, 200);
+      assert.deepEqual(updated.body.sender, senderB);
+      const inbox = await request(
+        local,
+        `/api/inbox/messages?thread=${initial.body.threadId}`,
+      );
+      assert.deepEqual(inbox.body.sender, senderB);
+      const list = await request(local, '/api/inbox/threads');
+      assert.deepEqual(
+        list.body.threads.find((thread) => thread.id === initial.body.threadId)
+          .sender,
+        senderB,
+      );
+    },
+  );
+  await scenario(
+    'invalid messages or sender updates preserve existing profile and history',
+    async () => {
+      const cookie = visitorCookie();
+      const initial = await request(local, '/api/chat', {
+        cookie,
+        body: { message: 'Preserved profile', sender: senderA },
+      });
+      for (const body of [
+        { message: '', sender: senderB },
+        {
+          message: 'No update',
+          sender: { ...senderB, contactValue: 'invalid' },
+        },
+        { message: 'x'.repeat(2001), sender: senderB },
+      ]) {
+        assert.equal(
+          (await request(local, '/api/chat', { cookie, body })).status,
+          400,
+        );
+        const unchanged = await request(local, '/api/chat', { cookie });
+        assert.deepEqual(unchanged.body.sender, senderA);
+        assert.deepEqual(unchanged.body.messages, initial.body.messages);
+      }
+    },
+  );
+  await scenario(
+    'message storage failure rolls back both new and existing sender details',
+    async () => {
+      const existingCookie = visitorCookie();
+      const newCookie = visitorCookie();
+      const initial = await request(local, '/api/chat', {
+        cookie: existingCookie,
+        body: { message: 'Transactional original', sender: senderA },
+      });
+      const db = await local.getD1Database('SITE_DB');
+      await db.exec(
+        "CREATE TRIGGER reject_fixture_message BEFORE INSERT ON chat_messages WHEN NEW.content = 'Reject transactional fixture' BEGIN SELECT RAISE(ABORT, 'isolated fixture rejection'); END;",
+      );
+      try {
+        for (const cookie of [existingCookie, newCookie])
+          assert.equal(
+            (
+              await request(local, '/api/chat', {
+                cookie,
+                body: {
+                  message: 'Reject transactional fixture',
+                  sender: senderB,
+                },
+              })
+            ).status,
+            503,
+          );
+        const unchanged = await request(local, '/api/chat', {
+          cookie: existingCookie,
+        });
+        assert.deepEqual(unchanged.body.sender, senderA);
+        assert.deepEqual(unchanged.body.messages, initial.body.messages);
+        assert.deepEqual(
+          (await request(local, '/api/chat', { cookie: newCookie })).body,
+          { threadId: null, sender: null, messages: [] },
+        );
+      } finally {
+        await db.exec('DROP TRIGGER reject_fixture_message;');
+      }
+    },
+  );
+  await scenario(
+    'sender contacts stay out of reactions, public assets and other visitor responses',
+    async () => {
+      const stranger = visitorCookie();
+      const responses = [
+        await request(local, reactionPath, { cookie: visitorA }),
+        await request(local, '/api/chat', { cookie: stranger }),
+        await request(local, '/tech/published/'),
+        await request(local, '/api/health'),
+      ];
+      for (const response of responses) {
+        assert.equal(response.status, 200);
+        assert.ok(!response.text.includes(senderA.contactValue));
+        assert.ok(!response.text.includes(senderB.contactValue));
+        if (response.headers.get('Set-Cookie'))
+          assert.ok(!response.headers.get('Set-Cookie').includes('@'));
+      }
+      assert.equal(responses[0].body.sender, undefined);
+      const inaccessible = await request(
+        closed,
+        `/api/inbox/messages?thread=${threadA}`,
+      );
+      assert.equal(inaccessible.status, 503);
+      assert.ok(!inaccessible.text.includes(senderA.contactValue));
     },
   );
   console.log(

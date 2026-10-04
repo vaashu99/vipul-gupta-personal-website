@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { profile, highlights } from '../data/profile';
+import { journalCategories } from '../data/journalCategories';
 
 const recentPosts = (
   await getCollection(
@@ -200,73 +201,53 @@ const postCategories = {
   <section class="personal-section" aria-labelledby="personal-heading">
     <div class="container personal-grid">
       <div>
-        <p class="eyebrow">03 / Beyond the terminal</p>
+        <p class="eyebrow">03 / Journal</p>
         <h2 id="personal-heading">
-          A little room
+          Room for a
           <br />
-          for <em>everything else.</em>
+          <em>wandering mind.</em>
         </h2>
         <p class="lead">
-          Travel, photographs, and memories worth keeping. My Space brings
-          together the places I explore and the moments I want to share.
+          Conversations that stay with me. Notes from everyday life. Questions
+          that begin with “what if”, and a little humour along the way. A home
+          for personal writing, with the first entries still to come.
         </p>
-        <a class="button button--outline" href="/my-space/">
-          Explore My Space <span aria-hidden="true">→</span>
+        <a class="button button--outline" href="/journal/">
+          Explore the journal <span aria-hidden="true">→</span>
         </a>
       </div>
       <div class="personal-list">
-        <a href="/my-space/#travel">
-          <span class="personal-icon" aria-hidden="true">
-            ↗
-          </span>
-          <div>
-            <h3>Travel</h3>
-            <p>Travel experiences and the details worth remembering.</p>
-          </div>
-          <span aria-hidden="true">→</span>
-        </a>
-        <a href="/my-space/#photos">
-          <span class="personal-icon" aria-hidden="true">
-            ◎
-          </span>
-          <div>
-            <h3>Photos</h3>
-            <p>Photo collections, one moment at a time.</p>
-          </div>
-          <span aria-hidden="true">→</span>
-        </a>
-        <a href="/my-space/#memories">
-          <span class="personal-icon" aria-hidden="true">
-            ✎
-          </span>
-          <div>
-            <h3>Memories</h3>
-            <p>
-              Little moments, meaningful milestones, and things worth
-              remembering.
-            </p>
-          </div>
-          <span aria-hidden="true">→</span>
-        </a>
+        {journalCategories.map((category, index) => (
+          <a href={`/journal/#${category.id}`}>
+            <span class="personal-icon" aria-hidden="true">
+              0{index + 1}
+            </span>
+            <div>
+              <h3>{category.label}</h3>
+              <p>{category.description}</p>
+            </div>
+            <span aria-hidden="true">→</span>
+          </a>
+        ))}
       </div>
     </div>
   </section>
 
   <section
     class="container section journal-invitation"
-    aria-labelledby="journal-heading"
+    aria-labelledby="my-space-heading"
   >
     <div>
-      <p class="eyebrow">04 / A new chapter</p>
-      <h2 id="journal-heading">Room for a wandering mind.</h2>
+      <p class="eyebrow">04 / My Space</p>
+      <h2 id="my-space-heading">A little more of life.</h2>
       <p>
-        Thoughts &amp; Conversations, Life Notes, What If, and Humour. The
-        journal has room for questions, reflections, imagined possibilities, and
-        a little laughter. The first entries are still to come.
+        Travel, photographs, and memories worth keeping. My Space brings
+        together the places I explore, the moments I want to share, and my
+        personal profiles elsewhere online.
       </p>
     </div>
-    <a class="text-link" href="/journal/">
-      Explore the journal <span aria-hidden="true">↗</span>
+    <a class="text-link" href="/my-space/">
+      Explore My Space <span aria-hidden="true">↗</span>
     </a>
   </section>
   <section class="container contact-banner" aria-labelledby="contact-heading">
@@ -554,7 +535,16 @@ const postCategories = {
     font-size: 0.9rem;
   }
   .personal-section {
-    background: var(--color-sage);
+    --color-ink: var(--color-journal-ink);
+    --color-muted: var(--color-journal-muted);
+    --color-accent: var(--color-journal-accent);
+    --color-accent-hover: var(--color-journal-hover);
+    --color-on-accent: var(--color-journal-on-accent);
+    --color-border: var(--color-journal-border);
+    --color-outline: var(--color-journal-accent);
+    --color-sage: var(--color-journal-bg);
+    background: var(--color-journal-bg);
+    color: var(--color-journal-ink);
     padding-block: 5rem;
   }
   .personal-grid {
@@ -592,7 +582,9 @@ const postCategories = {
     color: var(--color-muted, #5c6259);
   }
   .personal-icon {
-    font-size: 1.55rem;
+    padding-top: 0.25rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
     color: var(--color-accent, #285548);
   }
   .journal-invitation {

@@ -395,7 +395,9 @@ for (const collection of ['journal', 'tech'] as const) {
           },
         });
       });
-      await page.goto(route);
+      // Explicit UI assertions below await the API state; unrelated resources
+      // should not consume the interaction test's navigation budget.
+      await page.goto(route, { waitUntil: 'domcontentloaded' });
       const region = page.getByRole('region', {
         name: 'React to this article',
       });

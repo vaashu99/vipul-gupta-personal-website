@@ -23,26 +23,26 @@ const socialImageURL = new URL('/social-card.png', siteOrigin);
 ---
 
 <!doctype html>
-<html lang="en" data-theme="ocean">
+<html lang="en" data-theme="charcoal">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#f0f7fc" />
-    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#0f171e" />
+    <meta name="color-scheme" content="dark" />
     <script is:inline>
       (() => {
         const themes = {
           ocean: { background: '#f0f7fc', scheme: 'light' },
           charcoal: { background: '#0f171e', scheme: 'dark' },
         };
-        let theme = 'ocean';
+        let theme = 'charcoal';
         try {
           const saved = localStorage.getItem('vipulgupta.theme');
           if (saved === 'ocean' || saved === 'charcoal') {
             theme = saved;
           } else if (saved !== null) {
-            localStorage.setItem('vipulgupta.theme', 'ocean');
+            localStorage.setItem('vipulgupta.theme', 'charcoal');
           }
         } catch {
           // Use the default palette when browser storage is unavailable.

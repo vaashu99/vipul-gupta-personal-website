@@ -44,9 +44,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       </section>
       <section class="inbox-panel" aria-labelledby="thread-heading">
         <h2 id="thread-heading">Select a conversation</h2>
+        <div id="thread-sender" class="thread-sender" hidden></div>
         <p class="inbox-note" id="reply-note">
-          Replies appear in the visitor’s original browser. No email
-          notifications are sent.
+          Names and contact details are self-reported, not verified identities.
+          Replies appear in the visitor’s original browser; no automatic email
+          or SMS is sent.
         </p>
         <ol
           id="inbox-messages"
@@ -75,14 +77,28 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 </BaseLayout>
 
 <script>
-  type Thread = { id: string; updatedAt: string; lastMessage: string };
+  type Sender = {
+    name: string;
+    contactType: 'email' | 'phone';
+    contactValue: string;
+  };
+  type Thread = {
+    id: string;
+    updatedAt: string;
+    lastMessage: string;
+    sender: Sender | null;
+  };
   type Message = {
     id: number;
     sender: 'visitor' | 'owner';
     content: string;
     createdAt: string;
   };
-  type Conversation = { threadId: string; messages: Message[] };
+  type Conversation = {
+    threadId: string;
+    messages: Message[];
+    sender: Sender | null;
+  };
   const container = document.querySelector<HTMLElement>('#inbox-content');
   const status = document.querySelector<HTMLElement>('#inbox-status');
   const threads = document.querySelector<HTMLUListElement>('#inbox-threads');
@@ -95,6 +111,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   const send = document.querySelector<HTMLButtonElement>('#send-reply');
   const refresh = document.querySelector<HTMLButtonElement>('#refresh-inbox');
   const notice = document.querySelector<HTMLElement>('#preview-notice');
+  const senderPanel = document.querySelector<HTMLElement>('#thread-sender');
 
   if (
     container &&
@@ -107,14 +124,62 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     input &&
     send &&
     refresh &&
-    notice
+    notice &&
+    senderPanel
   ) {
     let selected: string | null = null;
-    let selectedLabel = '';
+    let displayedSenderSignature = '';
     let busy = false;
     let authenticated = false;
     let poll: ReturnType<typeof setInterval> | undefined;
     let lastMessageId = 0;
+
+    function senderLabel(sender: Sender | null, id: string) {
+      return `${sender?.name || 'Unidentified visitor'} · ${id.slice(0, 8)}`;
+    }
+
+    function renderSender(sender: Sender | null) {
+      const signature = JSON.stringify(sender);
+      if (!senderPanel!.hidden && signature === displayedSenderSignature)
+        return;
+      displayedSenderSignature = signature;
+      senderPanel!.replaceChildren();
+      senderPanel!.hidden = false;
+      if (!sender) {
+        senderPanel!.textContent =
+          'Unidentified visitor — no name or contact details were supplied for this older conversation.';
+        return;
+      }
+      const name = document.createElement('strong');
+      name.textContent = sender.name;
+      const details = document.createElement('p');
+      const label = document.createElement('span');
+      label.textContent =
+        sender.contactType === 'phone' ? 'Phone: ' : 'Email: ';
+      details.append(label);
+      const value = sender.contactValue;
+      let href: string | null = null;
+      if (
+        sender.contactType === 'email' &&
+        value.length <= 254 &&
+        /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value)
+      ) {
+        href = `mailto:${encodeURIComponent(value)}`;
+      } else if (
+        sender.contactType === 'phone' &&
+        value.length <= 50 &&
+        /^[+]?\d[\d\s().-]*$/.test(value)
+      ) {
+        const digits = value.replace(/\D/g, '');
+        if (digits.length >= 7 && digits.length <= 20)
+          href = `tel:${value.startsWith('+') ? '+' : ''}${digits}`;
+      }
+      const contact = document.createElement(href ? 'a' : 'span');
+      contact.textContent = value;
+      if (contact instanceof HTMLAnchorElement && href) contact.href = href;
+      details.append(contact);
+      senderPanel!.append(name, details);
+    }
 
     function dateLabel(timestamp: string) {
       const date = new Date(timestamp);
@@ -165,7 +230,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         const item = document.createElement('li');
         item.className = `inbox-message inbox-message--${message.sender}`;
         const author = document.createElement('strong');
-        author.textContent = message.sender === 'owner' ? 'You' : 'Visitor';
+        author.textContent =
+          message.sender === 'owner'
+            ? 'You'
+            : conversation.sender?.name || 'Unidentified visitor';
         const content = document.createElement('p');
         content.textContent = message.content;
         const time = document.createElement('time');
@@ -185,7 +253,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         lastMessageId,
         ...conversation.messages.map((message) => message.id),
       );
-      heading!.textContent = selectedLabel;
+      heading!.textContent = senderLabel(
+        conversation.sender,
+        conversation.threadId,
+      );
+      renderSender(conversation.sender);
       form!.hidden = false;
       if (newVisitorMessage)
         status!.textContent =
@@ -193,36 +265,53 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     }
 
     function renderThreads(items: Thread[]) {
+      const focused = document.activeElement;
+      const focusedThread =
+        focused instanceof HTMLButtonElement && threads!.contains(focused)
+          ? focused.dataset.threadId
+          : undefined;
       const fragment = document.createDocumentFragment();
-      items.forEach((thread, index) => {
+      items.forEach((thread) => {
         const item = document.createElement('li');
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'thread-button';
+        button.dataset.threadId = thread.id;
         button.setAttribute('aria-pressed', String(thread.id === selected));
         const label = document.createElement('strong');
-        label.textContent = `Conversation · ${thread.id.slice(0, 8)}`;
+        label.textContent = senderLabel(thread.sender, thread.id);
+        const contact = document.createElement('span');
+        contact.className = 'thread-contact';
+        contact.textContent = thread.sender
+          ? `${thread.sender.contactType === 'phone' ? 'Phone' : 'Email'}: ${thread.sender.contactValue}`
+          : 'No contact details supplied';
         const preview = document.createElement('span');
         preview.textContent = (thread.lastMessage || '').slice(0, 120);
         const time = document.createElement('time');
         time.dateTime = thread.updatedAt;
         time.textContent = dateLabel(thread.updatedAt);
-        button.append(label, preview, time);
+        button.append(label, contact, preview, time);
         button.addEventListener('click', () => {
-          if (!busy)
-            void select(
-              thread.id,
-              label.textContent || `Conversation ${index + 1}`,
-            );
+          if (!busy) void select(thread.id);
         });
         item.append(button);
         fragment.append(item);
       });
       threads!.replaceChildren(fragment);
+      if (focusedThread) {
+        for (const button of threads!.querySelectorAll<HTMLButtonElement>(
+          'button',
+        )) {
+          if (button.dataset.threadId === focusedThread) {
+            button.focus({ preventScroll: true });
+            break;
+          }
+        }
+      }
       empty!.hidden = items.length > 0;
     }
 
-    async function select(id: string, label: string) {
+    async function select(id: string) {
       if (busy) return;
       busy = true;
       refresh!.disabled = true;
@@ -230,10 +319,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       form!.hidden = true;
       // A failed fetch must never leave the previous visitor's messages under a new label.
       transcript!.replaceChildren();
+      senderPanel!.replaceChildren();
+      senderPanel!.hidden = true;
       heading!.textContent = 'Loading conversation…';
       status!.textContent = 'Loading messages…';
       selected = id;
-      selectedLabel = label;
       input!.value = '';
       lastMessageId = 0;
       try {
@@ -246,7 +336,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         ))
           button.setAttribute(
             'aria-pressed',
-            String(button.querySelector('strong')?.textContent === label),
+            String(button.dataset.threadId === id),
           );
         status!.textContent = 'Conversation loaded.';
       } catch (error) {
@@ -396,6 +486,21 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     font-size: 0.85rem;
     color: var(--color-muted);
     margin-top: 0.8rem;
+  }
+  .thread-sender {
+    margin-top: 1rem;
+    padding: 0.9rem;
+    background: var(--color-sage);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow-wrap: anywhere;
+  }
+  .thread-sender :global(p) {
+    margin-top: 0.3rem;
+  }
+  .thread-list :global(.thread-contact) {
+    font-size: 0.8rem;
+    color: var(--color-muted);
   }
   .thread-list {
     padding: 0;

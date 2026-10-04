@@ -1,6 +1,6 @@
 # Chat and shared reactions
 
-The public site remains static HTML. A small Cloudflare Worker handles anonymous chat, shared article reactions and the private owner inbox, using D1 for persistent storage. The public website is deployed at https://vipulgupta.tech with a dedicated production D1 database; owner inbox sign-in still requires the exact owner email and Cloudflare Access setup.
+The public site remains static HTML. A small Cloudflare Worker handles visitor chat, shared article reactions and the private owner inbox, using D1 for persistent storage. The public website is deployed at https://vipulgupta.tech with a dedicated production D1 database; owner inbox sign-in still requires the exact owner email and Cloudflare Access setup.
 
 ## Local review
 
@@ -23,18 +23,18 @@ Send a message as a visitor, open the owner inbox to select the conversation and
 
 ## Visitor behavior and privacy
 
-Chat is asynchronous: there is no online status, guaranteed response time, email delivery or push notification. Visitors need no account or email. An HTTP-only, same-site browser cookie connects them to their own conversation. Clearing cookies or using another browser starts a new identity and loses access to the previous conversation. The cookie lasts 180 days; messages currently have no automatic deletion schedule. The owner can read visitor messages in the private inbox. Set an appropriate message retention/deletion policy before public launch.
+Chat is asynchronous: there is no online status, guaranteed response time, email delivery or push notification. Visitors need no account. Before sending an identified message, they supply a name and either email or telephone. These details are self-reported and are visible only within their own browser-scoped conversation and the authenticated owner inbox; they do not verify identity or send email/SMS. Existing unidentified conversations are retained and can add details on their next message. An HTTP-only, same-site browser cookie connects visitors to their own conversation. Clearing cookies or using another browser starts a new identity and loses access to the previous conversation. The cookie lasts 180 days; messages currently have no automatic deletion schedule. The owner can read visitor messages in the private inbox. Set an appropriate message retention/deletion policy before public launch.
 
 Each browser identity can choose one of Like, Helpful or Insightful per published article. Choosing another reaction replaces the previous vote; choosing the selected reaction removes it. Counts are shared through the database. Browser identity is a modest participation limit, not a verified person: clearing cookies permits another identity. Draft, future and unknown article routes are not eligible.
 
-Requests use bounded plain-text input, parameterized database queries, same-origin write checks and modest burst guards. Burst guards are per Worker isolate, not a global spam-prevention service. IP addresses are not persisted; transient network buckets use a salted hash. No names or email addresses are required for reactions or chat. Message contents are displayed as text.
+Requests use bounded plain-text input, parameterized database queries, same-origin write checks and modest burst guards. Burst guards are per Worker isolate, not a global spam-prevention service. IP addresses are not persisted; transient network buckets use a salted hash. Reactions require no names or contact details. Chat sender details are stored privately on the thread, alongside bounded plain-text messages, and are not placed in URLs, local storage or public listings. Message contents and names are displayed as text.
 
 ## Production configuration
 
 Initial publication is complete. Owner inbox setup remains pending:
 
 1. Production D1 `vipul-personal-website` is created and bound as `SITE_DB` in `wrangler.jsonc`. Both SQL migrations have been applied remotely. For future schema changes, apply the reviewed migration explicitly with `npx wrangler d1 migrations apply vipul-personal-website --remote`. The local database and messages are never automatically uploaded.
-2. Configure Cloudflare Access for the owner page and inbox API paths, including `/inbox`, `/inbox/*`, `/inbox.html` and `/api/inbox/*`. Use an application audience shared by the protected paths. Restrict the allow policy to your specific owner email.
+2. Follow [the owner inbox setup guide](owner-inbox-setup.md). Configure Cloudflare Access for the owner page and inbox API paths, including `/inbox`, `/inbox/*`, `/inbox.html` and `/api/inbox/*`. Use an application audience shared by the protected paths. Restrict the allow policy to your specific owner email.
 3. Set `CF_ACCESS_TEAM_DOMAIN` to the team's `*.cloudflareaccess.com` hostname, `CF_ACCESS_AUD` to the application's audience and `OWNER_EMAIL` to that exact email in Worker configuration/secrets. Keep these out of public assets. The Worker independently checks the signed JWT, issuer, audience, expiry and email. “Any”, missing configuration and unverified identity fail closed.
 4. Never set `LOCAL_OWNER_PREVIEW` in production and never deploy with `wrangler.local.jsonc`.
 5. Review retention, abuse controls and platform usage limits, then update and run the deferred functional, privacy, authorization and accessibility checks. Verify visitor isolation, reaction persistence/toggling, cross-origin rejection, owner JWT handling and encoded inbox paths before deployment.

@@ -47,6 +47,58 @@ import { profile } from '../data/profile';
         aria-live="polite"
       ></p>
       <form id="chat-form" hidden>
+        <fieldset class="sender-details" aria-describedby="sender-help">
+          <legend>A little about you</legend>
+          <p id="sender-help" class="chat-note">
+            Please share your name and either an email address or a phone
+            number. These details are visible only to Vipul and are
+            self-reported, not verified. Adding contact details does not send
+            automatic email or SMS; replies still appear here.
+          </p>
+          <div class="sender-fields">
+            <div>
+              <label for="sender-name">Your name</label>
+              <input
+                id="sender-name"
+                name="senderName"
+                type="text"
+                autocomplete="name"
+                maxlength="100"
+                required
+                aria-describedby="sender-help"
+              />
+            </div>
+            <div>
+              <label for="sender-contact-type">Contact method</label>
+              <select id="sender-contact-type" name="contactType">
+                <option value="email">Email</option>
+                <option value="phone">Phone</option>
+              </select>
+            </div>
+            <div class="contact-field">
+              <label id="sender-contact-label" for="sender-contact">
+                Email address
+              </label>
+              <input
+                id="sender-contact"
+                name="contactValue"
+                type="email"
+                inputmode="email"
+                autocomplete="email"
+                maxlength="254"
+                required
+                aria-describedby="contact-help"
+              />
+              <p id="contact-help" class="chat-note">
+                Use an address such as name@example.com.
+              </p>
+            </div>
+          </div>
+          <p class="chat-note sender-edit-note">
+            Already chatting? Your saved details appear here. You can edit them
+            before sending your next message.
+          </p>
+        </fieldset>
         <label for="chat-message">Your message</label>
         <textarea
           id="chat-message"
@@ -57,9 +109,7 @@ import { profile } from '../data/profile';
           placeholder="Hi Vipul…"
         ></textarea>
         <div class="composer-actions">
-          <span class="chat-note">
-            Up to 2,000 characters. No email needed.
-          </span>
+          <span class="chat-note">Up to 2,000 characters.</span>
           <button class="button" type="submit" id="send-chat">
             Send message
           </button>
@@ -92,7 +142,16 @@ import { profile } from '../data/profile';
     content: string;
     createdAt: string;
   };
-  type Conversation = { threadId: string | null; messages: Message[] };
+  type Sender = {
+    name: string;
+    contactType: 'email' | 'phone';
+    contactValue: string;
+  };
+  type Conversation = {
+    threadId: string | null;
+    messages: Message[];
+    sender: Sender | null;
+  };
   const form = document.querySelector<HTMLFormElement>('#chat-form');
   const input = document.querySelector<HTMLTextAreaElement>('#chat-message');
   const send = document.querySelector<HTMLButtonElement>('#send-chat');
@@ -100,15 +159,136 @@ import { profile } from '../data/profile';
   const transcript = document.querySelector<HTMLOListElement>('#chat-messages');
   const empty = document.querySelector<HTMLElement>('#chat-empty');
   const status = document.querySelector<HTMLElement>('#chat-status');
+  const senderName = document.querySelector<HTMLInputElement>('#sender-name');
+  const contactType = document.querySelector<HTMLSelectElement>(
+    '#sender-contact-type',
+  );
+  const contact = document.querySelector<HTMLInputElement>('#sender-contact');
+  const contactLabel = document.querySelector<HTMLElement>(
+    '#sender-contact-label',
+  );
+  const contactHelp = document.querySelector<HTMLElement>('#contact-help');
 
-  if (form && input && send && refresh && transcript && empty && status) {
+  if (
+    form &&
+    input &&
+    send &&
+    refresh &&
+    transcript &&
+    empty &&
+    status &&
+    senderName &&
+    contactType &&
+    contact &&
+    contactLabel &&
+    contactHelp
+  ) {
     form.hidden = false;
     refresh.hidden = false;
+    let senderEdited = false;
+    let savedSenderSignature = '';
+    let previousContactType: 'email' | 'phone' = 'email';
+    const contactDrafts = { email: '', phone: '' };
+    const emailPattern = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+    const phonePattern = /^[+]?\d[\d\s().-]*$/;
     let busy = false;
     let hasConversation = false;
     let lastSeenId = 0;
     let initialLoad = true;
     let poll: ReturnType<typeof setInterval> | undefined;
+
+    function configureContact() {
+      const phone = contactType!.value === 'phone';
+      contact!.type = phone ? 'tel' : 'email';
+      contact!.inputMode = phone ? 'tel' : 'email';
+      contact!.autocomplete = phone ? 'tel' : 'email';
+      contact!.maxLength = phone ? 50 : 254;
+      contactLabel!.textContent = phone ? 'Phone number' : 'Email address';
+      contactHelp!.textContent = phone
+        ? 'Include your country code, for example +65 8123 4567.'
+        : 'Use an address such as name@example.com.';
+      contact!.setCustomValidity('');
+      contact!.removeAttribute('aria-invalid');
+    }
+
+    function invalid(
+      field: HTMLInputElement | HTMLTextAreaElement,
+      message: string,
+    ) {
+      field.setCustomValidity(message);
+      field.setAttribute('aria-invalid', 'true');
+      status!.textContent = message;
+      field.reportValidity();
+      field.focus();
+    }
+
+    function senderDetails(): Sender | null {
+      const name = senderName!.value.trim();
+      const value = contact!.value.trim();
+      const kind = contactType!.value === 'phone' ? 'phone' : 'email';
+      if (
+        !name ||
+        name.length > 100 ||
+        /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(name)
+      ) {
+        invalid(senderName!, 'Enter your name, using up to 100 characters.');
+        return null;
+      }
+      if (
+        kind === 'email' &&
+        (value.length > 254 || !emailPattern.test(value))
+      ) {
+        invalid(
+          contact!,
+          'Enter a valid email address, such as name@example.com.',
+        );
+        return null;
+      }
+      const digits = value.replace(/\D/g, '').length;
+      if (
+        kind === 'phone' &&
+        (value.length > 50 ||
+          !phonePattern.test(value) ||
+          digits < 7 ||
+          digits > 20)
+      ) {
+        invalid(
+          contact!,
+          'Enter a phone number with 7–20 digits, including your country code.',
+        );
+        return null;
+      }
+      return { name, contactType: kind, contactValue: value };
+    }
+
+    for (const field of [senderName, contact, input]) {
+      field.addEventListener('input', () => {
+        field.setCustomValidity('');
+        field.removeAttribute('aria-invalid');
+        if (field !== input) senderEdited = true;
+      });
+    }
+    contactType.addEventListener('change', () => {
+      contactDrafts[previousContactType] = contact.value;
+      previousContactType = contactType.value === 'phone' ? 'phone' : 'email';
+      contact.value = contactDrafts[previousContactType];
+      senderEdited = true;
+      configureContact();
+    });
+    form.addEventListener(
+      'invalid',
+      (event) => {
+        const field = event.target;
+        if (
+          field instanceof HTMLInputElement ||
+          field instanceof HTMLTextAreaElement
+        ) {
+          field.setAttribute('aria-invalid', 'true');
+          status.textContent = field.validationMessage;
+        }
+      },
+      true,
+    );
 
     function updatePolling() {
       if (poll !== undefined) clearInterval(poll);
@@ -121,6 +301,20 @@ import { profile } from '../data/profile';
     }
 
     function render(conversation: Conversation) {
+      const senderSignature = JSON.stringify(conversation.sender);
+      if (
+        conversation.sender &&
+        !senderEdited &&
+        senderSignature !== savedSenderSignature
+      ) {
+        savedSenderSignature = senderSignature;
+        senderName!.value = conversation.sender.name;
+        contactType!.value = conversation.sender.contactType;
+        previousContactType = conversation.sender.contactType;
+        contact!.value = conversation.sender.contactValue;
+        contactDrafts[previousContactType] = conversation.sender.contactValue;
+        configureContact();
+      }
       const hadMessages = lastSeenId > 0;
       let newReply = false;
       const fragment = document.createDocumentFragment();
@@ -207,18 +401,28 @@ import { profile } from '../data/profile';
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const message = input.value.trim();
-      if (!message || busy) return;
+      if (busy) return;
+      if (!message) {
+        invalid(input, 'Enter a message before sending.');
+        return;
+      }
+      const sender = senderDetails();
+      if (!sender) return;
       busy = true;
       send.disabled = true;
       refresh.disabled = true;
       input.readOnly = true;
+      senderName.readOnly = true;
+      contact.readOnly = true;
+      contactType.disabled = true;
       status.textContent = 'Sending your message…';
       try {
         const conversation = await request({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, sender }),
         });
+        senderEdited = false;
         render(conversation);
         input.value = '';
         status.textContent =
@@ -233,6 +437,9 @@ import { profile } from '../data/profile';
         send.disabled = false;
         refresh.disabled = false;
         input.readOnly = false;
+        senderName.readOnly = false;
+        contact.readOnly = false;
+        contactType.disabled = false;
       }
     });
     refresh.addEventListener('click', () => {
@@ -330,14 +537,49 @@ import { profile } from '../data/profile';
     font-weight: 600;
     margin-bottom: 0.5rem;
   }
-  textarea {
+  textarea,
+  input,
+  select {
     width: 100%;
-    resize: vertical;
     padding: 0.85rem;
     color: var(--color-ink);
     background: var(--color-bg);
     border: 1px solid var(--color-outline);
     border-radius: var(--radius);
+  }
+  textarea {
+    resize: vertical;
+  }
+  .sender-details {
+    margin: 0 0 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    min-width: 0;
+  }
+  .sender-details legend {
+    padding: 0 0.4rem;
+    font-weight: 600;
+  }
+  .sender-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .contact-field {
+    grid-column: 1 / -1;
+  }
+  .sender-edit-note {
+    margin-top: 1rem;
+  }
+  #contact-help {
+    margin-top: 0.4rem;
+  }
+  @media (max-width: 500px) {
+    .sender-fields {
+      grid-template-columns: 1fr;
+    }
   }
   .composer-actions {
     display: flex;

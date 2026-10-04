@@ -1,8 +1,8 @@
 <div class="theme-picker" data-theme-picker hidden>
   <label for="site-theme">Theme</label>
   <select id="site-theme" name="theme">
-    <option value="ocean">Ocean</option>
     <option value="charcoal">Charcoal</option>
+    <option value="ocean">Ocean</option>
   </select>
 </div>
 
@@ -30,7 +30,7 @@
         ?.setAttribute('content', themeSettings[theme].scheme);
     };
     const initial = document.documentElement.dataset.theme;
-    applyTheme(isTheme(initial) ? initial : 'ocean');
+    applyTheme(isTheme(initial) ? initial : 'charcoal');
     picker.hidden = false;
 
     select.addEventListener('change', () => {
@@ -45,13 +45,13 @@
 
     window.addEventListener('storage', (event) => {
       if (event.key !== storageKey && event.key !== null) return;
-      const theme = isTheme(event.newValue) ? event.newValue : 'ocean';
+      const theme = isTheme(event.newValue) ? event.newValue : 'charcoal';
       applyTheme(theme);
       if (event.newValue !== null && !isTheme(event.newValue)) {
         try {
           localStorage.setItem(storageKey, theme);
         } catch {
-          // Fall back to Ocean even if the saved preference cannot be updated.
+          // Fall back to Charcoal even if the saved preference cannot be updated.
         }
       }
     });

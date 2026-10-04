@@ -4,7 +4,7 @@ Status: Implemented for local review. Local preview only; no commit, push, or de
 
 ## Purpose
 
-Introduce Vipul Gupta to professional visitors while providing a home for travel, photos, and personal writing. The initial warm, minimal design is updated by [Specification 003](003-dark-theme-and-motion.md): dark charcoal backgrounds, bright mint accents, serif display type, and clear off-white body text. [Specification 006](006-tech-themes-and-updates.md) adds theme choices. [Specification 007](007-contact-reactions-and-refinements.md) retains Ocean (default) and Charcoal, and adds website chat and shared article reactions.
+Introduce Vipul Gupta to professional visitors while providing a home for travel, photos, and personal writing. The initial warm, minimal design is updated by [Specification 003](003-dark-theme-and-motion.md): dark charcoal backgrounds, bright mint accents, serif display type, and clear off-white body text. [Specification 006](006-tech-themes-and-updates.md) adds theme choices. [Specification 007](007-contact-reactions-and-refinements.md) retains Ocean and Charcoal and adds website chat and shared article reactions. [Specification 010](010-sender-details-and-event-update.md) makes Charcoal the default and adds private sender name/contact details to chat.
 
 ## Evidence and content
 
@@ -21,7 +21,7 @@ Do not copy the source PDF into public assets: it contains address, telephone, D
 - `/journal/`: accessible category filters (All, Thoughts & Conversations, Life Notes, What If, Humour); honest empty state with no fabricated articles.
 - `/my-space/`: personal hub for Travel, Photos and Memories, introduced by [Specification 008](008-journal-and-my-space.md).
 - `/photos/`: deliberate empty gallery with explanation that public photo collections will appear here. No fake locked albums.
-- `/chat/`: anonymous visitor conversation, with replies read in the same browser.
+- `/chat/`: visitor conversation with private sender name and email or phone, with replies read in the same browser.
 - `/inbox/`: owner-only inbox; excluded from public navigation and sitemap. Local preview and production authorization are separate.
 - `/404.html`: useful navigation back home.
 

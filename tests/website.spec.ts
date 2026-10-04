@@ -330,6 +330,7 @@ test('without JavaScript Experience shows the still illustration and no inert an
       animationRequests.push(request.url());
   });
   await page.goto(`${testInfo.project.use.baseURL}/experience/`);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'charcoal');
   const image = page.getByRole('img', { name: /Illustrated DevOps cycle/i });
   await expect(image).toBeVisible();
   await expect
@@ -793,39 +794,45 @@ for (const theme of themes) {
   }
 }
 
-test('Ocean is the default and the chooser persists Charcoal across routes and reloads', async ({
+test('Charcoal is the default and explicit Ocean persists across routes and reloads', async ({
   page,
 }) => {
   await page.goto('/');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'ocean');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'charcoal');
   const picker = page.getByLabel('Theme', { exact: true });
-  await expect(picker.locator('option')).toHaveText(['Ocean', 'Charcoal']);
-  await picker.selectOption('charcoal');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'charcoal');
-  await page.goto('/about/');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'charcoal');
-  await expect(picker).toHaveValue('charcoal');
-  await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'charcoal');
+  await expect(picker.locator('option')).toHaveCount(2);
+  expect((await picker.locator('option').allTextContents()).sort()).toEqual([
+    'Charcoal',
+    'Ocean',
+  ]);
   await picker.selectOption('ocean');
+  await page.goto('/about/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'ocean');
+  await expect(picker).toHaveValue('ocean');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'ocean');
+  await picker.selectOption('charcoal');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'charcoal');
 });
 
 for (const saved of ['warm', 'invalid']) {
-  test(`a saved ${saved} preference migrates to Ocean`, async ({ page }) => {
+  test(`a saved ${saved} preference migrates to Charcoal`, async ({ page }) => {
     await page.addInitScript(
       (value) => localStorage.setItem('vipulgupta.theme', value),
       saved,
     );
     await page.goto('/');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'ocean');
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-theme',
+      'charcoal',
+    );
     await expect(page.getByLabel('Theme', { exact: true })).toHaveValue(
-      'ocean',
+      'charcoal',
     );
     expect(
       await page.evaluate(() => localStorage.getItem('vipulgupta.theme')),
-    ).toBe('ocean');
+    ).toBe('charcoal');
   });
 }
 
@@ -841,9 +848,9 @@ test('a blocked preference store leaves theme controls usable', async ({
     };
   });
   await page.goto('/');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'ocean');
-  await page.getByLabel('Theme', { exact: true }).selectOption('charcoal');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'charcoal');
+  await page.getByLabel('Theme', { exact: true }).selectOption('ocean');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'ocean');
 });
 
 test('mobile visitors can select a theme and navigate to every new hub', async ({
@@ -995,7 +1002,7 @@ test('published Tech posts use distinct professional categories and publication 
     await selected.getByRole('heading').getByRole('link').click();
     await expect(page.locator('main h1')).toHaveText(title);
     await expect(page.locator('.article-prose')).toContainText(
-      /publication date on my website/,
+      /publication date on my website|website publication date/,
     );
     if (category === 'Learning')
       await expect(page.locator('.article-prose')).toContainText('July 2026');
@@ -1062,16 +1069,17 @@ for (const palette of themes) {
                     id: threadId,
                     updatedAt: message.createdAt,
                     lastMessage: literal,
+                    sender: null,
                   },
                 ],
               }
-            : { threadId, messages: [message] };
+            : { threadId, messages: [message], sender: null };
         await route.fulfill({ status: 200, json });
       });
       await page.goto(`/${destination}/`);
       if (destination === 'inbox')
         await page
-          .getByRole('button', { name: /Conversation · 11111111/ })
+          .getByRole('button', { name: /Unidentified visitor · 11111111/ })
           .click();
       const transcript = page.getByRole('list', {
         name:
@@ -1104,4 +1112,465 @@ for (const palette of themes) {
       expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
     });
   }
+}
+
+test('homepage sections 03 and 04 lead to the revised Journal and My Space', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const journal = page
+    .locator('section')
+    .filter({ has: page.getByText('03 / Journal', { exact: true }) });
+  const space = page
+    .locator('section')
+    .filter({ has: page.getByText('04 / My Space', { exact: true }) });
+  await expect(journal).toHaveCount(1);
+  await expect(space).toHaveCount(1);
+  expect(
+    await journal.evaluate((element) =>
+      Array.from(element.parentElement!.children).indexOf(element),
+    ),
+  ).toBeLessThan(
+    await space.evaluate((element) =>
+      Array.from(element.parentElement!.children).indexOf(element),
+    ),
+  );
+  for (const [label, slug] of [
+    ['Thoughts & Conversations', 'thoughts-conversations'],
+    ['Life Notes', 'life-notes'],
+    ['What If', 'what-if'],
+    ['Humour', 'humour'],
+  ]) {
+    const link = journal.getByRole('link', {
+      name: new RegExp(label.replace('&', '&')),
+    });
+    await expect(link).toHaveAttribute('href', `/journal/#${slug}`);
+  }
+  await expect(space.getByRole('link', { name: /My Space/ })).toHaveAttribute(
+    'href',
+    '/my-space/',
+  );
+  for (const palette of themes) {
+    await page.getByLabel('Theme', { exact: true }).selectOption(palette);
+    await page.evaluate(() =>
+      Promise.all(
+        document.getAnimations().map((a) => a.finished.catch(() => {})),
+      ),
+    );
+    const sectionStyle = await journal.evaluate((element) => {
+      const s = getComputedStyle(element);
+      return { background: s.backgroundColor, color: s.color };
+    });
+    const bodyBackground = await page
+      .locator('body')
+      .evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(sectionStyle.background).not.toBe(bodyBackground);
+    expect(
+      contrast(sectionStyle.color, sectionStyle.background),
+    ).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+test('My Space exposes exactly the four supplied personal profiles without SDK requests', async ({
+  page,
+}) => {
+  const external: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).hostname !== '127.0.0.1')
+      external.push(request.url());
+  });
+  await page.goto('/my-space/');
+  const links = page.locator('#elsewhere .social-grid a');
+  await expect(links).toHaveCount(4);
+  const profiles = [
+    ['YouTube', 'https://youtube.com/@musicroadandlaugh'],
+    ['X / Twitter', 'https://x.com/vipulgupta_99'],
+    ['Instagram', 'https://www.instagram.com/vipulguptasg'],
+    ['Facebook', 'https://www.facebook.com/vaashu.gupta'],
+  ];
+  for (const [label, url] of profiles) {
+    const link = links.filter({ has: page.getByText(label, { exact: true }) });
+    await expect(link).toHaveAttribute('href', url);
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', /noopener/);
+  }
+  expect(external).toEqual([]);
+});
+
+for (const width of widths) {
+  test(`the four GitLab event figures preserve decoded image proportions at ${width}px`, async ({
+    page,
+    request,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/tech/gitlab-after-dark-singapore/');
+    const article = page.locator('.article-prose');
+    await expect(article).toContainText('24 September 2026');
+    await expect(article).toContainText('Rasa Space');
+    await expect(article).toContainText('Earning the Right to Autonomy');
+    await expect(article).toContainText(/rather than a transcript/);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      'content',
+      /Earning the Right to Autonomy/,
+    );
+    await expect(page.locator('time[datetime]').first()).toHaveAttribute(
+      'datetime',
+      /^2026-10-03T16:00:00/,
+    );
+    const figures = article.locator('figure');
+    await expect(figures).toHaveCount(4);
+    for (const figure of await figures.all()) {
+      await expect(figure.locator('figcaption')).not.toBeEmpty();
+      const image = figure.locator('img');
+      await image.scrollIntoViewIfNeeded();
+      await expect(image).toHaveAttribute('alt', /\S.{30,}/);
+      const result = await image.evaluate(async (element) => {
+        const img = element as HTMLImageElement;
+        await img.decode();
+        const bitmap = await createImageBitmap(
+          await (await fetch(img.currentSrc)).blob(),
+        );
+        const box = img.getBoundingClientRect();
+        const result = {
+          pixels: [bitmap.width, bitmap.height],
+          attributes: [
+            Number(img.getAttribute('width')),
+            Number(img.getAttribute('height')),
+          ],
+          ratio: box.width / box.height,
+          left: box.left,
+          right: box.right,
+          source: img.currentSrc,
+        };
+        bitmap.close();
+        return result;
+      });
+      expect(result.pixels).toEqual(result.attributes);
+      expect(
+        Math.abs(result.ratio - result.pixels[0] / result.pixels[1]),
+      ).toBeLessThan(0.002);
+      expect(result.left).toBeGreaterThanOrEqual(0);
+      expect(result.right).toBeLessThanOrEqual(width + 1);
+      await expect(figure.getByRole('link')).toHaveAttribute(
+        'href',
+        new URL(result.source).pathname,
+      );
+      const bytes = await (await request.get(result.source)).body();
+      const chunks: string[] = [];
+      for (let cursor = 12; cursor + 8 <= bytes.length;) {
+        chunks.push(bytes.subarray(cursor, cursor + 4).toString('ascii'));
+        const size = bytes.readUInt32LE(cursor + 4);
+        cursor += 8 + size + (size & 1);
+      }
+      expect(
+        chunks.filter((chunk) => ['EXIF', 'XMP ', 'ICCP'].includes(chunk)),
+      ).toEqual([]);
+    }
+  });
+}
+
+const qaThread = '11111111-2222-3333-4444-555555555555';
+const qaSender = {
+  name: 'QA Visitor',
+  contactType: 'email',
+  contactValue: 'qa-visitor@example.com',
+};
+
+for (const contactType of ['email', 'phone'] as const) {
+  test(`new chat requires a name and valid ${contactType} before posting sender details`, async ({
+    page,
+  }) => {
+    const posts: unknown[] = [];
+    await page.route('**/api/chat', async (route) => {
+      const post = route.request().method() === 'POST';
+      const data = post ? route.request().postDataJSON() : null;
+      if (post) posts.push(data);
+      await route.fulfill({
+        json: {
+          threadId: post ? qaThread : null,
+          messages: post
+            ? [
+                {
+                  id: 1,
+                  sender: 'visitor',
+                  content: data.message,
+                  createdAt: '2026-10-05T00:00:00Z',
+                },
+              ]
+            : [],
+          sender: post ? data.sender : null,
+        },
+      });
+    });
+    await page.goto('/chat/');
+    await page
+      .getByLabel('Your message', { exact: true })
+      .fill('QA local browser message');
+    await page
+      .getByRole('button', { name: 'Send message', exact: true })
+      .click();
+    await expect(page.getByLabel('Your name', { exact: true })).toBeFocused();
+    expect(posts).toEqual([]);
+    await page.getByLabel('Your name', { exact: true }).fill('  QA Visitor  ');
+    await page
+      .getByLabel('Contact method', { exact: true })
+      .selectOption(contactType);
+    const contact = page.getByLabel(
+      contactType === 'email' ? 'Email address' : 'Phone number',
+      { exact: true },
+    );
+    await expect(contact).toHaveAttribute(
+      'type',
+      contactType === 'email' ? 'email' : 'tel',
+    );
+    await contact.fill(contactType === 'email' ? 'invalid' : '123');
+    await page
+      .getByRole('button', { name: 'Send message', exact: true })
+      .click();
+    expect(posts).toEqual([]);
+    const value =
+      contactType === 'email' ? 'qa-visitor@example.com' : '+65 8123 4567';
+    await contact.fill(value);
+    await page
+      .getByRole('button', { name: 'Send message', exact: true })
+      .click();
+    await expect(page.getByRole('status')).toContainText('Message saved.');
+    expect(posts).toEqual([
+      {
+        message: 'QA local browser message',
+        sender: { name: 'QA Visitor', contactType, contactValue: value },
+      },
+    ]);
+    await expect(page.getByLabel('Your message', { exact: true })).toHaveValue(
+      '',
+    );
+    expect(new URL(page.url()).search).toBe('');
+    const local = await page.evaluate(() =>
+      JSON.stringify({ ...localStorage }),
+    );
+    expect(local).not.toContain('qa-visitor');
+    expect(local).not.toContain('QA Visitor');
+    expect(local).not.toContain('8123');
+  });
+}
+
+for (const identified of [false, true]) {
+  test(`${identified ? 'identified' : 'legacy'} chat prefills appropriately and refresh/poll preserve edited details and drafts`, async ({
+    page,
+  }) => {
+    await page.clock.install();
+    let gets = 0;
+    await page.route('**/api/chat', async (route) => {
+      gets++;
+      await route.fulfill({
+        json: {
+          threadId: qaThread,
+          sender: identified ? qaSender : null,
+          messages: [
+            {
+              id: 1,
+              sender: 'visitor',
+              content: 'Earlier message',
+              createdAt: '2026-10-05T00:00:00Z',
+            },
+          ],
+        },
+      });
+    });
+    await page.goto('/chat/');
+    await page.bringToFront();
+    await expect(
+      page.getByRole('list', { name: 'Conversation messages' }),
+    ).toContainText('Earlier message');
+    await expect(page.getByLabel('Your name', { exact: true })).toHaveValue(
+      identified ? 'QA Visitor' : '',
+    );
+    await expect(page.getByLabel('Email address', { exact: true })).toHaveValue(
+      identified ? 'qa-visitor@example.com' : '',
+    );
+    await page.getByLabel('Your name', { exact: true }).fill('Edited QA name');
+    await page
+      .getByLabel('Email address', { exact: true })
+      .fill('draft@example.com');
+    await page.getByLabel('Your message', { exact: true }).fill('Unsent draft');
+    await page
+      .getByLabel('Contact method', { exact: true })
+      .selectOption('phone');
+    await page
+      .getByLabel('Phone number', { exact: true })
+      .fill('+65 8123 4567');
+    await page
+      .getByLabel('Contact method', { exact: true })
+      .selectOption('email');
+    await expect(page.getByLabel('Email address', { exact: true })).toHaveValue(
+      'draft@example.com',
+    );
+    await page
+      .getByRole('button', { name: 'Refresh replies', exact: true })
+      .click();
+    await expect(
+      page.getByRole('button', { name: 'Refresh replies', exact: true }),
+    ).toBeEnabled();
+    const before = gets;
+    await page.clock.fastForward(16000);
+    await expect.poll(() => gets).toBeGreaterThan(before);
+    await expect(page.getByLabel('Your name', { exact: true })).toHaveValue(
+      'Edited QA name',
+    );
+    await expect(page.getByLabel('Email address', { exact: true })).toHaveValue(
+      'draft@example.com',
+    );
+    await expect(page.getByLabel('Your message', { exact: true })).toHaveValue(
+      'Unsent draft',
+    );
+    await page
+      .getByLabel('Contact method', { exact: true })
+      .selectOption('phone');
+    await expect(page.getByLabel('Phone number', { exact: true })).toHaveValue(
+      '+65 8123 4567',
+    );
+  });
+}
+
+test('failed chat delivery preserves sender and message drafts for a later retry', async ({
+  page,
+}) => {
+  let posted = 0;
+  await page.route('**/api/chat', async (route) => {
+    if (route.request().method() === 'POST') {
+      posted++;
+      if (posted === 1) {
+        await route.fulfill({
+          status: 503,
+          json: { message: 'QA simulated unavailable service' },
+        });
+        return;
+      }
+      const data = route.request().postDataJSON();
+      await route.fulfill({
+        json: {
+          threadId: qaThread,
+          sender: data.sender,
+          messages: [
+            {
+              id: 1,
+              sender: 'visitor',
+              content: data.message,
+              createdAt: '2026-10-05T00:00:00Z',
+            },
+          ],
+        },
+      });
+      return;
+    }
+    await route.fulfill({
+      json: { threadId: qaThread, sender: qaSender, messages: [] },
+    });
+  });
+  await page.goto('/chat/');
+  await expect(page.getByLabel('Your name', { exact: true })).toHaveValue(
+    'QA Visitor',
+  );
+  await page
+    .getByLabel('Your message', { exact: true })
+    .fill('Keep this draft');
+  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText(
+    'QA simulated unavailable service',
+  );
+  await expect(page.getByLabel('Your message', { exact: true })).toHaveValue(
+    'Keep this draft',
+  );
+  await expect(page.getByLabel('Email address', { exact: true })).toHaveValue(
+    'qa-visitor@example.com',
+  );
+  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Message saved.');
+  expect(posted).toBe(2);
+});
+
+for (const contactType of ['email', 'phone', 'unsafe', 'legacy'] as const) {
+  test(`private inbox renders ${contactType} sender information safely`, async ({
+    page,
+  }) => {
+    // Model a complete available backend; localhost also requests health.
+    await page.route('**/api/health', (route) =>
+      route.fulfill({ json: { mode: 'production' } }),
+    );
+    const unsafe = '<img src=x onerror="window.__senderExecuted=true">';
+    const sender =
+      contactType === 'legacy'
+        ? null
+        : {
+            name: contactType === 'unsafe' ? unsafe : 'QA Visitor',
+            contactType: contactType === 'phone' ? 'phone' : 'email',
+            contactValue:
+              contactType === 'phone'
+                ? '+65 8123 4567'
+                : contactType === 'unsafe'
+                  ? unsafe
+                  : 'qa-visitor@example.com',
+          };
+    await page.route('**/api/inbox/**', async (route) => {
+      const listing = new URL(route.request().url()).pathname.endsWith(
+        '/threads',
+      );
+      await route.fulfill({
+        json: listing
+          ? {
+              threads: [
+                {
+                  id: qaThread,
+                  updatedAt: '2026-10-05T00:00:00Z',
+                  lastMessage: 'Private QA message',
+                  sender,
+                },
+              ],
+            }
+          : {
+              threadId: qaThread,
+              sender,
+              messages: [
+                {
+                  id: 1,
+                  sender: 'visitor',
+                  content: 'Private QA message',
+                  createdAt: '2026-10-05T00:00:00Z',
+                },
+              ],
+            },
+      });
+    });
+    await page.goto('/inbox/');
+    const name = sender?.name ?? 'Unidentified visitor';
+    const thread = page.locator('#inbox-threads').getByRole('button');
+    await expect(thread).toContainText(name);
+    await thread.click();
+    const details = page.locator('#thread-sender');
+    await expect(details).toContainText(name);
+    if (contactType === 'legacy')
+      await expect(details).toContainText('no name or contact details');
+    else await expect(details).toContainText(sender!.contactValue);
+    if (contactType === 'email')
+      await expect(details.getByRole('link')).toHaveAttribute(
+        'href',
+        'mailto:qa-visitor%40example.com',
+      );
+    if (contactType === 'phone')
+      await expect(details.getByRole('link')).toHaveAttribute(
+        'href',
+        'tel:+6581234567',
+      );
+    if (contactType === 'unsafe') {
+      await expect(details.locator('img,script,a')).toHaveCount(0);
+      expect(
+        await page.evaluate(
+          () =>
+            (window as Window & { __senderExecuted?: boolean })
+              .__senderExecuted,
+        ),
+      ).toBeUndefined();
+    }
+    await expect(page.getByLabel('Your reply', { exact: true })).toBeVisible();
+  });
 }

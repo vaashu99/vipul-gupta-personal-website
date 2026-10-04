@@ -11,6 +11,14 @@ import {
 } from './journal-fixtures.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+// Allow a predeployment verification to disable retries without changing CI defaults.
+const testArguments = ['test'];
+if (process.env.JOURNAL_TEST_RETRIES !== undefined) {
+  if (!/^\d+$/.test(process.env.JOURNAL_TEST_RETRIES)) {
+    throw new Error('JOURNAL_TEST_RETRIES must be a nonnegative integer.');
+  }
+  testArguments.push('--', `--retries=${process.env.JOURNAL_TEST_RETRIES}`);
+}
 let activeChild;
 let interrupted = false;
 
@@ -97,7 +105,7 @@ try {
   try {
     await prepareFixtures();
     await run(['run', 'build', '--', '--outDir', fixtureOutput]);
-    await run(['test'], {
+    await run(testArguments, {
       ...process.env,
       CI: '1',
       JOURNAL_FIXTURE_TESTS: '1',
