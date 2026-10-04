@@ -1,0 +1,59 @@
+<div class="theme-picker" data-theme-picker hidden>
+  <label for="site-theme">Theme</label>
+  <select id="site-theme" name="theme">
+    <option value="ocean">Ocean</option>
+    <option value="charcoal">Charcoal</option>
+  </select>
+</div>
+
+<script>
+  const picker = document.querySelector<HTMLElement>('[data-theme-picker]');
+  const select = picker?.querySelector<HTMLSelectElement>('select');
+  const themeSettings = {
+    ocean: { background: '#f0f7fc', scheme: 'light' },
+    charcoal: { background: '#0f171e', scheme: 'dark' },
+  } as const;
+  type Theme = keyof typeof themeSettings;
+  const storageKey = 'vipulgupta.theme';
+  const isTheme = (value: string | null | undefined): value is Theme =>
+    value === 'ocean' || value === 'charcoal';
+
+  if (picker && select) {
+    const applyTheme = (theme: Theme) => {
+      document.documentElement.dataset.theme = theme;
+      select.value = theme;
+      document
+        .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+        ?.setAttribute('content', themeSettings[theme].background);
+      document
+        .querySelector<HTMLMetaElement>('meta[name="color-scheme"]')
+        ?.setAttribute('content', themeSettings[theme].scheme);
+    };
+    const initial = document.documentElement.dataset.theme;
+    applyTheme(isTheme(initial) ? initial : 'ocean');
+    picker.hidden = false;
+
+    select.addEventListener('change', () => {
+      if (!isTheme(select.value)) return;
+      applyTheme(select.value);
+      try {
+        localStorage.setItem(storageKey, select.value);
+      } catch {
+        // The selected theme remains usable when browser storage is unavailable.
+      }
+    });
+
+    window.addEventListener('storage', (event) => {
+      if (event.key !== storageKey && event.key !== null) return;
+      const theme = isTheme(event.newValue) ? event.newValue : 'ocean';
+      applyTheme(theme);
+      if (event.newValue !== null && !isTheme(event.newValue)) {
+        try {
+          localStorage.setItem(storageKey, theme);
+        } catch {
+          // Fall back to Ocean even if the saved preference cannot be updated.
+        }
+      }
+    });
+  }
+</script>

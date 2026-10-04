@@ -1,0 +1,368 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DevOpsAnimation from '../components/DevOpsAnimation.astro';
+import {
+  certifications,
+  education,
+  experience,
+  profile,
+  skillGroups,
+} from '../data/profile';
+---
+
+<BaseLayout
+  title="Experience — Vipul Gupta"
+  description={`Explore Vipul Gupta’s experience as a ${profile.role}, career progression, skills, education, and credentials, from Linux operations to banking infrastructure.`}
+>
+  <div class="container">
+    <header class="page-header experience-header">
+      <div>
+        <p class="eyebrow">The professional side</p>
+        <h1 class="display">
+          <span class="screen-title">Experience, built over time.</span>
+          <span class="print-title">{profile.name}</span>
+        </h1>
+        <p class="lead">{profile.summary}</p>
+        <p class="resume-identity">
+          {profile.name} · {profile.role} · {profile.location}
+        </p>
+      </div>
+      <button
+        class="button button--outline print-hidden"
+        id="print-resume"
+        type="button"
+      >
+        Print résumé <span aria-hidden="true">↗</span>
+      </button>
+    </header>
+
+    <DevOpsAnimation />
+
+    <section class="section career-section" aria-labelledby="career-heading">
+      <div class="section-intro">
+        <p class="eyebrow">2015 to today</p>
+        <h2 id="career-heading">Career</h2>
+      </div>
+      <div class="career-timeline">
+        {experience.map((job) => (
+          <article class="career-entry">
+            <div class="career-date">
+              <p>{job.period}</p>
+              <p class="career-location">{job.location}</p>
+            </div>
+            <div class="career-details">
+              <p class="eyebrow">{job.employer}</p>
+              <h3>{job.role}</h3>
+              <ul class="career-bullets">
+                {job.bullets.map((bullet) => (
+                  <li>{bullet}</li>
+                ))}
+              </ul>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="skills-heading">
+      <div class="section-intro">
+        <p class="eyebrow">Tools & foundations</p>
+        <h2 id="skills-heading">Skills I work with</h2>
+      </div>
+      <div class="grid-two skills-grid">
+        {skillGroups.map((group) => (
+          <div class="card skill-group">
+            <h3>{group.title}</h3>
+            <ul class="skill-list" aria-label={group.title}>
+              {group.skills.map((skill) => (
+                <li class="tag">{skill}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section
+      class="section grid-two credentials"
+      aria-label="Education and credentials"
+    >
+      <div>
+        <p class="eyebrow">Foundations</p>
+        <h2>Education</h2>
+        <div class="credential-list">
+          {education.map((item) => (
+            <article class="credential">
+              <p class="credential-year">{item.year}</p>
+              <h3>{item.qualification}</h3>
+              <p>{item.institution}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p class="eyebrow">Continued learning</p>
+        <h2>Learning & credentials</h2>
+        <div class="credential-list">
+          {certifications.map((item) => (
+            <article class="credential">
+              <p class="credential-year">{item.issuer}</p>
+              <h3>{item.title}</h3>
+              <p class="credential-dates">{item.dates}</p>
+            </article>
+          ))}
+        </div>
+        <p class="language-note">Languages: English and Hindi.</p>
+      </div>
+    </section>
+
+    <section
+      class="section experience-contact print-hidden"
+      aria-labelledby="connect-heading"
+    >
+      <p class="eyebrow">Start a conversation</p>
+      <h2 id="connect-heading">Let’s connect.</h2>
+      <p>
+        Find me on LinkedIn for professional conversations, or explore my
+        GitHub.
+      </p>
+      <div class="contact-links">
+        <a class="text-link" href={profile.linkedin}>
+          LinkedIn <span aria-hidden="true">↗</span>
+        </a>
+        <a class="text-link" href={profile.github}>
+          GitHub <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  document.getElementById('print-resume')?.addEventListener('click', () => {
+    window.print();
+  });
+</script>
+
+<style>
+  .experience-header {
+    --color-ink: #f3f7fb;
+    --color-muted: #d0deeb;
+    --color-accent: #96d5ff;
+    --color-accent-hover: #c9eaff;
+    --color-outline: #96d5ff;
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+    justify-content: space-between;
+    margin-block: 2rem 2.5rem;
+    padding: clamp(1.5rem, 4vw, 3rem);
+    border: 1px solid #294562;
+    border-radius: 1rem;
+    background:
+      linear-gradient(105deg, rgb(7 21 39 / 92%), rgb(10 28 49 / 74%)),
+      url('/images/devops-infinity.webp') center / cover;
+    color: var(--color-ink);
+  }
+  .experience-header > div {
+    max-width: 47rem;
+  }
+  .experience-header button {
+    flex-shrink: 0;
+    margin-top: 2rem;
+    border-color: #88bddf;
+    background: rgb(7 21 39 / 72%);
+    color: #f3f7fb;
+  }
+  .experience-header button:hover {
+    border-color: #b9e2ff;
+    background: rgb(41 91 131 / 74%);
+    color: #fff;
+  }
+  .print-title {
+    display: none;
+  }
+  .resume-identity {
+    margin-top: 1.5rem;
+    font-size: 0.875rem;
+  }
+  .section-intro {
+    margin-bottom: 2rem;
+  }
+  .career-entry {
+    display: grid;
+    grid-template-columns: 14rem minmax(0, 1fr);
+    gap: 2rem;
+    padding: 2.5rem 0;
+    border-top: 1px solid var(--color-border);
+  }
+  .career-date p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+  .career-date .career-location {
+    margin-top: 0.4rem;
+    color: var(--color-muted);
+  }
+  .career-details h3 {
+    margin-bottom: 1rem;
+  }
+  .career-bullets {
+    padding-left: 1.15rem;
+    margin: 0;
+    max-width: 48rem;
+  }
+  .career-bullets li {
+    padding-left: 0.35rem;
+    margin: 0.7rem 0;
+    line-height: 1.7;
+  }
+  .skill-group h3 {
+    margin-bottom: 1.25rem;
+  }
+  .skill-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .credentials {
+    align-items: start;
+  }
+  .credential-list {
+    margin-top: 1.75rem;
+  }
+  .credential {
+    padding: 1.25rem 0;
+    border-top: 1px solid var(--color-border);
+  }
+  .credential h3 {
+    font-size: 1.2rem;
+    margin: 0.5rem 0;
+  }
+  .credential p {
+    margin: 0;
+  }
+  .credential-year,
+  .credential-dates,
+  .language-note {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+  .experience-contact {
+    border-top: 1px solid var(--color-border);
+  }
+  .contact-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  @media (max-width: 760px) {
+    .experience-header {
+      display: block;
+    }
+    .experience-header button {
+      margin-top: 1.5rem;
+    }
+    .career-entry {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 2rem 0;
+    }
+  }
+  @media print {
+    .experience-header {
+      --color-ink: #111;
+      --color-muted: #333;
+      --color-accent: #111;
+      display: block;
+      margin: 0;
+      padding-block: 0 0.75rem;
+      padding-inline: 0;
+      border: 0;
+      border-radius: 0;
+      background: none;
+      color: #111;
+    }
+    .experience-header .lead {
+      font-size: 10pt;
+      line-height: 1.4;
+      margin-block: 0.5rem;
+    }
+    .resume-identity {
+      margin-block: 0.5rem 0;
+      font-size: 10pt;
+    }
+    .section-intro {
+      margin-bottom: 1rem;
+      break-inside: avoid;
+      break-after: avoid;
+    }
+    .screen-title {
+      display: none;
+    }
+    .print-title {
+      display: inline;
+    }
+    .career-entry {
+      display: block;
+      padding: 0.75rem 0;
+      break-inside: avoid;
+    }
+    .career-date {
+      margin-bottom: 0.35rem;
+      break-after: avoid;
+    }
+    .career-date p,
+    .career-details .eyebrow,
+    .career-details h3 {
+      break-after: avoid;
+    }
+    .career-bullets li {
+      break-inside: avoid;
+      margin: 0.2rem 0;
+      line-height: 1.35;
+    }
+    .career-details h3 {
+      margin-bottom: 0.5rem;
+    }
+    .skill-group {
+      margin-bottom: 0.6rem;
+      padding-block: 0.4rem;
+    }
+    .skill-group h3 {
+      margin-bottom: 0.4rem;
+    }
+    .credentials {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem;
+      break-inside: avoid;
+    }
+    .credential-list {
+      margin-top: 0.5rem;
+    }
+    .credential {
+      padding-block: 0.5rem;
+    }
+    .credential h3 {
+      font-size: 10pt;
+      margin-block: 0.25rem;
+    }
+    .credential-year,
+    .credential-dates,
+    .language-note {
+      font-size: 9pt;
+    }
+    .language-note {
+      margin-top: 0.5rem;
+    }
+    .credential,
+    .skill-group {
+      break-inside: avoid;
+    }
+  }
+</style>

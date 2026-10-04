@@ -1,0 +1,98 @@
+---
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import ChatWidget from '../components/ChatWidget.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  ogType?: 'website' | 'article';
+  publishedTime?: string;
+}
+
+const { title, description, ogType = 'website', publishedTime } = Astro.props;
+const pageTitle = title;
+const siteOrigin = Astro.site ?? new URL('https://vipulgupta.tech');
+const canonicalPath =
+  Astro.url.pathname === '/404/' || Astro.url.pathname === '/404'
+    ? '/404.html'
+    : Astro.url.pathname;
+const canonicalURL = new URL(canonicalPath, siteOrigin);
+const socialImageURL = new URL('/social-card.png', siteOrigin);
+---
+
+<!doctype html>
+<html lang="en" data-theme="ocean">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f0f7fc" />
+    <meta name="color-scheme" content="light" />
+    <script is:inline>
+      (() => {
+        const themes = {
+          ocean: { background: '#f0f7fc', scheme: 'light' },
+          charcoal: { background: '#0f171e', scheme: 'dark' },
+        };
+        let theme = 'ocean';
+        try {
+          const saved = localStorage.getItem('vipulgupta.theme');
+          if (saved === 'ocean' || saved === 'charcoal') {
+            theme = saved;
+          } else if (saved !== null) {
+            localStorage.setItem('vipulgupta.theme', 'ocean');
+          }
+        } catch {
+          // Use the default palette when browser storage is unavailable.
+        }
+        document.documentElement.dataset.theme = theme;
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute('content', themes[theme].background);
+        document
+          .querySelector('meta[name="color-scheme"]')
+          ?.setAttribute('content', themes[theme].scheme);
+      })();
+    </script>
+    <title>{pageTitle}</title>
+    <link rel="canonical" href={canonicalURL} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content={ogType} />
+    {publishedTime && (
+      <meta property="article:published_time" content={publishedTime} />
+    )}
+    <meta property="og:site_name" content="Vipul Gupta" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:image" content={socialImageURL} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Vipul Gupta — engineering, stories, and life beyond work"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={socialImageURL} />
+    <meta
+      name="twitter:image:alt"
+      content="Vipul Gupta — engineering, stories, and life beyond work"
+    />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">
+      Skip to content
+    </a>
+    <Header />
+    <main id="main-content" tabindex="-1">
+      <slot />
+    </main>
+    <Footer />
+    <ChatWidget />
+  </body>
+</html>

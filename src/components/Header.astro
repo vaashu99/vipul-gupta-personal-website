@@ -1,0 +1,116 @@
+---
+import ThemePicker from './ThemePicker.astro';
+
+const navigation = [
+  { label: 'Home', href: '/' },
+  { label: 'Experience', href: '/experience/' },
+  { label: 'Tech', href: '/tech/' },
+  { label: 'About', href: '/about/' },
+  { label: 'Journal', href: '/journal/' },
+  { label: 'My Space', href: '/my-space/' },
+];
+const currentPath = Astro.url.pathname;
+---
+
+<header class="site-header" data-header>
+  <div class="container header-inner">
+    <a class="brand" href="/" aria-label="Vipul Gupta — home">
+      <svg class="brand-mark" viewBox="0 0 44 44" aria-hidden="true">
+        <rect
+          x="1"
+          y="1"
+          width="42"
+          height="42"
+          rx="11"
+          fill="currentColor"
+        ></rect>
+        <path d="M9 13h3l6 17 6-17h3l-8 21h-2L9 13Z" fill="#faf8f2"></path>
+        <path
+          d="M34 16a9 9 0 1 0 1 13v-7h-8v2h5v4a6 6 0 1 1 0-10l2-2Z"
+          fill="#faf8f2"
+        ></path>
+      </svg>
+      <span class="brand-name">
+        Vipul Gupta<span class="brand-dot">.</span>
+      </span>
+    </a>
+    <button
+      class="nav-toggle"
+      type="button"
+      aria-expanded="false"
+      aria-controls="primary-navigation"
+      aria-label="Open navigation"
+      hidden
+    >
+      <span class="nav-toggle-line"></span>
+      <span class="nav-toggle-line"></span>
+    </button>
+    <nav
+      id="primary-navigation"
+      class="primary-navigation"
+      aria-label="Main navigation"
+    >
+      <ul class="nav-list">
+        {navigation.map(({ label, href }) => (
+          <li>
+            <a
+              href={href}
+              aria-current={
+                currentPath === href ||
+                (href !== '/' && currentPath.startsWith(href)) ||
+                (href === '/my-space/' && currentPath.startsWith('/photos/'))
+                  ? 'page'
+                  : undefined
+              }
+            >
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <ThemePicker />
+      <a class="button header-cta" href="/experience/">
+        View résumé <span aria-hidden="true">↗</span>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const header = document.querySelector<HTMLElement>('[data-header]');
+  const toggle = header?.querySelector<HTMLButtonElement>('.nav-toggle');
+  const navigation = header?.querySelector<HTMLElement>('#primary-navigation');
+
+  if (header && toggle && navigation) {
+    toggle.hidden = false;
+    header.dataset.navEnabled = 'true';
+    const setOpen = (open: boolean) => {
+      header.dataset.menuOpen = String(open);
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute(
+        'aria-label',
+        open ? 'Close navigation' : 'Open navigation',
+      );
+    };
+    toggle.addEventListener('click', () => {
+      setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+    });
+    document.addEventListener('keydown', (event) => {
+      if (
+        event.key === 'Escape' &&
+        toggle.getAttribute('aria-expanded') === 'true'
+      ) {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+    navigation.addEventListener('click', (event) => {
+      if ((event.target as HTMLElement).closest('a')) setOpen(false);
+    });
+    window
+      .matchMedia('(min-width: 1100px)')
+      .addEventListener('change', (event) => {
+        if (event.matches) setOpen(false);
+      });
+  }
+</script>

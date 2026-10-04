@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#faf8f2"/>
+  <path d="M80 84h1040M80 548h1040" stroke="#d8ddd0"/>
+  <circle cx="991" cy="322" r="154" fill="#e7ecdf"/>
+  <circle cx="991" cy="322" r="121" fill="none" stroke="#194b40" stroke-width="2"/>
+  <path d="M887 260h22l45 125 46-125h23l-62 155h-16l-58-155Z" fill="#194b40"/>
+  <text x="82" y="168" fill="#194b40" font-family="Arial, sans-serif" font-size="20" letter-spacing="4">ENGINEERING · STORIES · LIFE</text>
+  <text x="76" y="311" fill="#194b40" font-family="Georgia, serif" font-size="94">Vipul Gupta.</text>
+  <text x="82" y="384" fill="#485a51" font-family="Arial, sans-serif" font-size="28">Thoughtful systems. A curious life.</text>
+  <text x="82" y="499" fill="#194b40" font-family="Arial, sans-serif" font-size="22">vipulgupta.tech</text>
+</svg>

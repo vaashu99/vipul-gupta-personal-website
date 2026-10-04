@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Photos | Vipul Gupta"
+  description="A future home for Vipul Gupta's public photo collections, travel moments and visual stories."
+>
+  <section class="container page-header">
+    <p class="eyebrow">My Space / Photos</p>
+    <h1 class="display">Room for a different view.</h1>
+    <p class="lead photos-intro">
+      A home for travel photographs and little moments worth keeping.
+      Collections will appear here as they're ready to share.
+    </p>
+    <a class="text-link" href="/my-space/#photos">
+      <span aria-hidden="true">←</span> Back to My Space
+    </a>
+  </section>
+
+  <section
+    class="container photos-content"
+    aria-labelledby="collections-heading"
+  >
+    <div class="card empty-state">
+      <img
+        class="empty-state-art"
+        src="/images/photos-illustration.svg"
+        width="360"
+        height="220"
+        alt=""
+      />
+      <p class="eyebrow">No photo collections published yet.</p>
+      <h2 class="empty-state-title" id="collections-heading">
+        A gallery in the making.
+      </h2>
+      <p class="empty-state-copy">
+        The space is ready; the photographs are still to come. This gallery will
+        feature selected public collections, with a little context behind each
+        one.
+      </p>
+      <a class="text-link" href="/my-space/">
+        Explore My Space <span aria-hidden="true">↗</span>
+      </a>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .photos-intro {
+    max-width: 42rem;
+  }
+
+  .photos-content {
+    padding-bottom: clamp(4rem, 9vw, 7rem);
+  }
+</style>

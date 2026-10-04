@@ -1,0 +1,175 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { profile } from '../data/profile';
+---
+
+<BaseLayout
+  title="About — Vipul Gupta"
+  description={`Meet Vipul Gupta, a Singapore-based ${profile.role} with interests in travel, photography, and personal writing.`}
+>
+  <div class="container">
+    <header class="page-header about-header">
+      <p class="eyebrow">A little more about me</p>
+      <h1 class="display">
+        Systems, stories,
+        <br />
+        and the space between.
+      </h1>
+      <p class="lead">
+        I’m {profile.name}, a {profile.role} based in {profile.location}. This
+        is a place for my work, my interests, and the things I want to remember.
+      </p>
+    </header>
+
+    <section
+      class="section grid-two about-story"
+      aria-labelledby="work-heading"
+    >
+      <div>
+        <p class="eyebrow">At work</p>
+        <h2 id="work-heading">Making complex systems dependable.</h2>
+      </div>
+      <div class="prose">
+        <p>
+          {`My career began in Linux operations and grew through DevOps, cloud infrastructure, and site reliability engineering. Since ${profile.roleSince}, I’ve worked as a ${profile.role} at GXS Bank in Singapore, designing and operating infrastructure for critical banking systems.`}
+        </p>
+        <p>
+          I’m interested in the foundations that make software reliable: clear
+          architecture, repeatable automation, observability, and secure
+          communication. GitOps, Kubernetes, and Terraform are part of how I
+          bring those foundations into daily operations.
+        </p>
+        <p>
+          The work also involves people. I collaborate across engineering,
+          business, security, and compliance to connect infrastructure decisions
+          with the needs of the teams relying on them.
+        </p>
+        <p>
+          At Xylem, I mentored junior engineers; at GXS, I work across
+          engineering teams and stakeholders. My recent learning includes
+          deploying and operating AI solutions through the National University
+          of Singapore.
+        </p>
+        <a class="text-link" href="/experience/">
+          Explore my experience <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section beyond-work" aria-labelledby="personal-heading">
+      <div class="grid-two">
+        <div>
+          <p class="eyebrow">Beyond work</p>
+          <h2 id="personal-heading">Room for a different perspective.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            Travel, photography, and writing belong here too. I’m building a
+            place to share experiences and photographs alongside my professional
+            story.
+          </p>
+          <p>
+            Journal is a home for thoughts, conversations, life notes, what-if
+            ideas, and humour. My Space brings together travel, photos, and
+            memories. Both are ready for the personal pieces I choose to share.
+          </p>
+          <div class="about-links">
+            <a class="text-link" href="/journal/">
+              Visit the journal <span aria-hidden="true">→</span>
+            </a>
+            <a class="text-link" href="/my-space/">
+              Explore My Space <span aria-hidden="true">→</span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <ul class="interest-list" aria-label="Personal interests">
+        {profile.interests.map((interest, index) => (
+          <li>
+            <span aria-hidden="true">0{index + 1}</span>
+            {interest}
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="section about-contact" aria-labelledby="contact-heading">
+      <p class="eyebrow">Say hello</p>
+      <h2 id="contact-heading">A conversation starts here.</h2>
+      <p class="lead">
+        For professional connections or a look at my code, you can find me on
+        LinkedIn and GitHub.
+      </p>
+      <div class="about-links">
+        <a class="button" href={profile.linkedin}>
+          Connect on LinkedIn <span aria-hidden="true">↗</span>
+        </a>
+        <a class="button button--outline" href={profile.github}>
+          Explore GitHub <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .about-header {
+    max-width: 54rem;
+  }
+  .about-story,
+  .beyond-work {
+    border-top: 1px solid var(--color-border);
+  }
+  .about-story h2,
+  .beyond-work h2 {
+    max-width: 22rem;
+  }
+  .prose p {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    line-height: 1.85;
+  }
+  .about-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: center;
+    margin-top: 1.75rem;
+  }
+  .interest-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2rem;
+    list-style: none;
+    padding: 0;
+    margin: 3rem 0 0;
+  }
+  .interest-list li {
+    border-top: 1px solid var(--color-border);
+    padding-top: 1.25rem;
+    font-size: clamp(1.1rem, 2vw, 1.6rem);
+  }
+  .interest-list span {
+    display: block;
+    margin-bottom: 1.25rem;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+  .about-contact {
+    border-top: 1px solid var(--color-border);
+  }
+  .about-contact .lead {
+    max-width: 40rem;
+  }
+  @media (max-width: 600px) {
+    .interest-list {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+    .interest-list span {
+      display: inline-block;
+      margin-right: 1.25rem;
+      margin-bottom: 0;
+    }
+  }
+</style>

@@ -1,0 +1,192 @@
+---
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+// Always share the public address, even while reviewing on localhost.
+const publicURL = new URL(
+  Astro.url.pathname,
+  Astro.site ?? 'https://vipulgupta.tech',
+).href;
+const encodedURL = encodeURIComponent(publicURL);
+const emailSubject = encodeURIComponent(title);
+const emailBody = encodeURIComponent(`${description}\n\n${publicURL}`);
+---
+
+<section
+  class="article-sharing"
+  aria-label="Share this article"
+  data-article-sharing
+  data-title={title}
+  data-description={description}
+  data-url={publicURL}
+>
+  <h2>Share this article</h2>
+  <div class="share-actions">
+    <button type="button" class="button" data-native-share hidden>
+      Share article <span aria-hidden="true">↗</span>
+    </button>
+    <button type="button" class="button button--outline" data-copy-link hidden>
+      Copy link
+    </button>
+    <a
+      href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodedURL}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      LinkedIn
+    </a>
+    <a href={`mailto:?subject=${emailSubject}&body=${emailBody}`}>Email</a>
+  </div>
+  <p
+    class="share-status"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+    data-share-status
+  ></p>
+  <div class="manual-link" data-manual-link>
+    <label for="article-public-link">Article link</label>
+    <input
+      id="article-public-link"
+      type="url"
+      readonly
+      value={publicURL}
+      aria-describedby="article-link-help"
+    />
+    <p id="article-link-help">Select this link to copy it manually.</p>
+  </div>
+</section>
+
+<script>
+  document
+    .querySelectorAll<HTMLElement>('[data-article-sharing]')
+    .forEach((section) => {
+      const shareButton = section.querySelector<HTMLButtonElement>(
+        '[data-native-share]',
+      );
+      const copyButton =
+        section.querySelector<HTMLButtonElement>('[data-copy-link]');
+      const status = section.querySelector<HTMLElement>('[data-share-status]');
+      const manualLink =
+        section.querySelector<HTMLElement>('[data-manual-link]');
+      const linkInput = section.querySelector<HTMLInputElement>('input');
+      const url = section.dataset.url;
+      if (
+        !url ||
+        !shareButton ||
+        !copyButton ||
+        !status ||
+        !manualLink ||
+        !linkInput
+      )
+        return;
+      manualLink.hidden = true;
+      copyButton.hidden = false;
+
+      const showManualLink = () => {
+        manualLink.hidden = false;
+        status.textContent =
+          'Automatic copying is unavailable. Select and copy the article link below.';
+        linkInput.focus();
+        linkInput.select();
+      };
+
+      copyButton.addEventListener('click', async () => {
+        status.textContent = '';
+        if (!navigator.clipboard?.writeText) {
+          showManualLink();
+          return;
+        }
+        copyButton.disabled = true;
+        try {
+          await navigator.clipboard.writeText(url);
+          manualLink.hidden = true;
+          status.textContent = 'Link copied.';
+        } catch {
+          showManualLink();
+        } finally {
+          copyButton.disabled = false;
+        }
+      });
+
+      if (typeof navigator.share === 'function') {
+        shareButton.hidden = false;
+        shareButton.addEventListener('click', async () => {
+          status.textContent = '';
+          shareButton.disabled = true;
+          try {
+            await navigator.share({
+              title: section.dataset.title,
+              text: section.dataset.description,
+              url,
+            });
+            status.textContent = 'Article shared.';
+          } catch (error) {
+            // Closing the device share sheet is a normal visitor choice.
+            if (!(
+              error instanceof DOMException && error.name === 'AbortError'
+            )) {
+              status.textContent =
+                'Sharing is unavailable. Use Copy link or one of the sharing links.';
+            }
+          } finally {
+            shareButton.disabled = false;
+          }
+        });
+      }
+    });
+</script>
+
+<style>
+  .article-sharing {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+  }
+  h2 {
+    font-size: 1.4rem;
+    margin: 0 0 1rem;
+  }
+  .share-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+  }
+  .share-actions a {
+    font-size: 0.95rem;
+  }
+  .share-status {
+    font-size: 0.9rem;
+    min-height: 1.5em;
+    margin: 0.8rem 0;
+  }
+  .manual-link label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .manual-link input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 0.75rem;
+    background: var(--color-surface);
+    color: inherit;
+    border: 1px solid var(--color-border);
+    border-radius: 0.25rem;
+    font: inherit;
+  }
+  .manual-link p {
+    font-size: 0.9rem;
+    margin: 0.5rem 0 0;
+  }
+  @media print {
+    .article-sharing {
+      display: none;
+    }
+  }
+</style>

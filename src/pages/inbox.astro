@@ -1,0 +1,496 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Private inbox — Vipul Gupta"
+  description="Private owner inbox for website conversations."
+>
+  <div class="container inbox-page">
+    <header class="page-header">
+      <p class="eyebrow">Owner space</p>
+      <h1 class="display">Your private inbox.</h1>
+      <p class="lead">Read website messages and reply to visitors here.</p>
+      <p id="preview-notice" class="preview-notice" hidden>
+        Local owner preview on this computer. Production access stays locked
+        until your owner email and Cloudflare Access are configured.
+      </p>
+    </header>
+    <p id="inbox-status" class="inbox-status" role="status" aria-live="polite">
+      Checking owner access…
+    </p>
+    <div class="inbox-grid" id="inbox-content" hidden>
+      <section
+        class="inbox-panel conversation-list"
+        aria-labelledby="threads-heading"
+      >
+        <div class="inbox-toolbar">
+          <h2 id="threads-heading">Conversations</h2>
+          <button
+            type="button"
+            class="button button--outline"
+            id="refresh-inbox"
+          >
+            Refresh
+          </button>
+        </div>
+        <p id="threads-empty" class="inbox-note">
+          No messages yet. New visitor conversations will appear here.
+        </p>
+        <ul id="inbox-threads" class="thread-list"></ul>
+        <p class="inbox-note">
+          Showing the 100 most recently updated conversations.
+        </p>
+      </section>
+      <section class="inbox-panel" aria-labelledby="thread-heading">
+        <h2 id="thread-heading">Select a conversation</h2>
+        <p class="inbox-note" id="reply-note">
+          Replies appear in the visitor’s original browser. No email
+          notifications are sent.
+        </p>
+        <ol
+          id="inbox-messages"
+          class="inbox-messages"
+          aria-label="Conversation messages"
+        ></ol>
+        <form id="reply-form" hidden>
+          <label for="reply-message">Your reply</label>
+          <textarea
+            id="reply-message"
+            name="message"
+            rows="4"
+            maxlength="2000"
+            required
+          ></textarea>
+          <button class="button" id="send-reply" type="submit">
+            Send reply
+          </button>
+        </form>
+      </section>
+    </div>
+    <noscript>
+      <p>Enable JavaScript to read and reply to messages.</p>
+    </noscript>
+  </div>
+</BaseLayout>
+
+<script>
+  type Thread = { id: string; updatedAt: string; lastMessage: string };
+  type Message = {
+    id: number;
+    sender: 'visitor' | 'owner';
+    content: string;
+    createdAt: string;
+  };
+  type Conversation = { threadId: string; messages: Message[] };
+  const container = document.querySelector<HTMLElement>('#inbox-content');
+  const status = document.querySelector<HTMLElement>('#inbox-status');
+  const threads = document.querySelector<HTMLUListElement>('#inbox-threads');
+  const empty = document.querySelector<HTMLElement>('#threads-empty');
+  const transcript =
+    document.querySelector<HTMLOListElement>('#inbox-messages');
+  const heading = document.querySelector<HTMLElement>('#thread-heading');
+  const form = document.querySelector<HTMLFormElement>('#reply-form');
+  const input = document.querySelector<HTMLTextAreaElement>('#reply-message');
+  const send = document.querySelector<HTMLButtonElement>('#send-reply');
+  const refresh = document.querySelector<HTMLButtonElement>('#refresh-inbox');
+  const notice = document.querySelector<HTMLElement>('#preview-notice');
+
+  if (
+    container &&
+    status &&
+    threads &&
+    empty &&
+    transcript &&
+    heading &&
+    form &&
+    input &&
+    send &&
+    refresh &&
+    notice
+  ) {
+    let selected: string | null = null;
+    let selectedLabel = '';
+    let busy = false;
+    let authenticated = false;
+    let poll: ReturnType<typeof setInterval> | undefined;
+    let lastMessageId = 0;
+
+    function dateLabel(timestamp: string) {
+      const date = new Date(timestamp);
+      return Number.isNaN(date.getTime())
+        ? ''
+        : date.toLocaleString(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          });
+    }
+
+    async function api<T>(path: string, options?: RequestInit): Promise<T> {
+      const response = await fetch(path, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        ...options,
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) {
+        if (response.status === 401 || response.status === 403 || !data) {
+          authenticated = false;
+          form!.hidden = true;
+          container!.hidden = true;
+          updatePolling();
+        }
+        throw new Error(
+          data?.message ||
+            'Owner access is unavailable. Sign in through Cloudflare Access, then reload this page.',
+        );
+      }
+      return data as T;
+    }
+
+    function updatePolling() {
+      if (poll !== undefined) clearInterval(poll);
+      poll = undefined;
+      if (authenticated && !document.hidden && document.hasFocus()) {
+        poll = setInterval(() => {
+          if (!busy) void reload(true);
+        }, 15000);
+      }
+    }
+
+    function renderConversation(conversation: Conversation) {
+      const fragment = document.createDocumentFragment();
+      let newVisitorMessage = false;
+      for (const message of conversation.messages) {
+        const item = document.createElement('li');
+        item.className = `inbox-message inbox-message--${message.sender}`;
+        const author = document.createElement('strong');
+        author.textContent = message.sender === 'owner' ? 'You' : 'Visitor';
+        const content = document.createElement('p');
+        content.textContent = message.content;
+        const time = document.createElement('time');
+        time.dateTime = message.createdAt;
+        time.textContent = dateLabel(message.createdAt);
+        item.append(author, content, time);
+        fragment.append(item);
+        if (
+          lastMessageId > 0 &&
+          message.id > lastMessageId &&
+          message.sender === 'visitor'
+        )
+          newVisitorMessage = true;
+      }
+      transcript!.replaceChildren(fragment);
+      lastMessageId = Math.max(
+        lastMessageId,
+        ...conversation.messages.map((message) => message.id),
+      );
+      heading!.textContent = selectedLabel;
+      form!.hidden = false;
+      if (newVisitorMessage)
+        status!.textContent =
+          'A new visitor message arrived in this conversation.';
+    }
+
+    function renderThreads(items: Thread[]) {
+      const fragment = document.createDocumentFragment();
+      items.forEach((thread, index) => {
+        const item = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'thread-button';
+        button.setAttribute('aria-pressed', String(thread.id === selected));
+        const label = document.createElement('strong');
+        label.textContent = `Conversation · ${thread.id.slice(0, 8)}`;
+        const preview = document.createElement('span');
+        preview.textContent = (thread.lastMessage || '').slice(0, 120);
+        const time = document.createElement('time');
+        time.dateTime = thread.updatedAt;
+        time.textContent = dateLabel(thread.updatedAt);
+        button.append(label, preview, time);
+        button.addEventListener('click', () => {
+          if (!busy)
+            void select(
+              thread.id,
+              label.textContent || `Conversation ${index + 1}`,
+            );
+        });
+        item.append(button);
+        fragment.append(item);
+      });
+      threads!.replaceChildren(fragment);
+      empty!.hidden = items.length > 0;
+    }
+
+    async function select(id: string, label: string) {
+      if (busy) return;
+      busy = true;
+      refresh!.disabled = true;
+      send!.disabled = true;
+      form!.hidden = true;
+      // A failed fetch must never leave the previous visitor's messages under a new label.
+      transcript!.replaceChildren();
+      heading!.textContent = 'Loading conversation…';
+      status!.textContent = 'Loading messages…';
+      selected = id;
+      selectedLabel = label;
+      input!.value = '';
+      lastMessageId = 0;
+      try {
+        const conversation = await api<Conversation>(
+          `/api/inbox/messages?thread=${encodeURIComponent(id)}`,
+        );
+        renderConversation(conversation);
+        for (const button of threads!.querySelectorAll<HTMLButtonElement>(
+          'button',
+        ))
+          button.setAttribute(
+            'aria-pressed',
+            String(button.querySelector('strong')?.textContent === label),
+          );
+        status!.textContent = 'Conversation loaded.';
+      } catch (error) {
+        status!.textContent =
+          error instanceof Error
+            ? error.message
+            : 'Could not load this conversation.';
+        heading!.textContent = 'Conversation unavailable';
+        selected = null;
+      } finally {
+        busy = false;
+        refresh!.disabled = false;
+        send!.disabled = false;
+      }
+    }
+
+    async function reload(quiet = false) {
+      if (busy) return;
+      busy = true;
+      refresh!.disabled = true;
+      send!.disabled = true;
+      if (!quiet) status!.textContent = 'Refreshing your inbox…';
+      try {
+        const result = await api<{ threads: Thread[] }>('/api/inbox/threads');
+        authenticated = true;
+        container!.hidden = false;
+        renderThreads(result.threads);
+        if (selected)
+          renderConversation(
+            await api<Conversation>(
+              `/api/inbox/messages?thread=${encodeURIComponent(selected)}`,
+            ),
+          );
+        if (!quiet) status!.textContent = 'Your inbox is up to date.';
+        updatePolling();
+      } catch (error) {
+        status!.textContent =
+          error instanceof Error
+            ? error.message
+            : 'Could not refresh your inbox. Please try again.';
+      } finally {
+        busy = false;
+        refresh!.disabled = false;
+        send!.disabled = false;
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const message = input.value.trim();
+      if (!selected || !message || busy) return;
+      busy = true;
+      send.disabled = true;
+      refresh.disabled = true;
+      input.readOnly = true;
+      status.textContent = 'Saving your reply…';
+      try {
+        const conversation = await api<Conversation>('/api/inbox/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ threadId: selected, message }),
+        });
+        renderConversation(conversation);
+        input.value = '';
+        status.textContent =
+          'Reply saved. The visitor can read it in their original browser.';
+      } catch (error) {
+        status.textContent =
+          error instanceof Error
+            ? error.message
+            : 'Your reply could not be saved. Please try again.';
+      } finally {
+        busy = false;
+        send.disabled = false;
+        refresh.disabled = false;
+        input.readOnly = false;
+      }
+    });
+    refresh.addEventListener('click', () => {
+      void reload();
+    });
+    document.addEventListener('visibilitychange', updatePolling);
+    window.addEventListener('focus', () => {
+      updatePolling();
+      if (authenticated && !busy) void reload(true);
+    });
+    window.addEventListener('blur', updatePolling);
+    window.addEventListener('pagehide', () => {
+      if (poll !== undefined) clearInterval(poll);
+    });
+    if (
+      ['127.0.0.1', 'localhost', '[::1]'].includes(window.location.hostname)
+    ) {
+      void api<{ mode: string }>('/api/health')
+        .then((data) => {
+          notice.hidden = data.mode !== 'local-preview';
+        })
+        .catch(() => {});
+    }
+    void reload();
+  }
+</script>
+
+<style>
+  .inbox-page {
+    padding-bottom: 5rem;
+  }
+  .preview-notice {
+    margin-top: 1rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-sage);
+    color: var(--color-muted);
+  }
+  .inbox-status {
+    margin-bottom: 1rem;
+    min-height: 1.8rem;
+    color: var(--color-muted);
+  }
+  .inbox-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .inbox-panel {
+    padding: 1.25rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+  .inbox-panel h2 {
+    font-size: 1.6rem;
+  }
+  .inbox-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+  }
+  .inbox-toolbar button {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.85rem;
+  }
+  .inbox-note {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    margin-top: 0.8rem;
+  }
+  .thread-list {
+    padding: 0;
+    list-style: none;
+    margin: 1rem 0;
+    display: grid;
+    gap: 0.6rem;
+  }
+  .thread-list :global(.thread-button) {
+    text-align: left;
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.8rem;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    cursor: pointer;
+    overflow-wrap: anywhere;
+  }
+  .thread-list :global(.thread-button[aria-pressed='true']) {
+    border-color: var(--color-accent);
+    background: var(--color-sage);
+  }
+  .thread-list :global(strong),
+  .thread-list :global(span),
+  .thread-list :global(time) {
+    display: block;
+  }
+  .thread-list :global(strong) {
+    font-size: 0.85rem;
+  }
+  .thread-list :global(span) {
+    font-size: 0.9rem;
+    margin: 0.4rem 0;
+  }
+  .thread-list :global(time) {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+  .inbox-messages {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .inbox-messages :global(.inbox-message) {
+    width: 90%;
+    padding: 0.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    overflow-wrap: anywhere;
+  }
+  .inbox-messages :global(.inbox-message--owner) {
+    align-self: flex-end;
+    background: var(--color-sage);
+  }
+  .inbox-messages :global(strong) {
+    font-size: 0.85rem;
+  }
+  .inbox-messages :global(p) {
+    white-space: pre-wrap;
+    margin-top: 0.3rem;
+  }
+  .inbox-messages :global(time) {
+    display: block;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+  }
+  form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  textarea {
+    width: 100%;
+    resize: vertical;
+    padding: 0.8rem;
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    color: var(--color-ink);
+  }
+  form button {
+    margin-top: 0.8rem;
+  }
+  [hidden] {
+    display: none !important;
+  }
+  @media (max-width: 760px) {
+    .inbox-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

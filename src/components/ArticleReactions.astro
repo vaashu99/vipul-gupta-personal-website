@@ -1,0 +1,277 @@
+---
+interface Props {
+  article: string;
+}
+const { article } = Astro.props;
+const reactions = [
+  { id: 'like', label: 'Like' },
+  { id: 'helpful', label: 'Helpful' },
+  { id: 'insightful', label: 'Insightful' },
+];
+---
+
+<section
+  class="article-reactions"
+  aria-label="React to this article"
+  data-article-reactions
+  data-article={article}
+>
+  <h2>What did you think?</h2>
+  <p class="reaction-help">
+    One reaction per article in this browser. Reactions are shared with other
+    readers.
+  </p>
+  <div
+    class="reaction-actions"
+    role="group"
+    aria-label="Choose an article reaction"
+    data-reaction-actions
+    hidden
+  >
+    {reactions.map(({ id, label }) => (
+      <button
+        class="reaction-button"
+        type="button"
+        data-reaction={id}
+        aria-pressed="false"
+        disabled
+      >
+        <span>{label}</span>
+        <span class="reaction-count" data-reaction-count hidden></span>
+      </button>
+    ))}
+  </div>
+  <p
+    class="reaction-status"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+    data-reaction-status
+    hidden
+  >
+    Loading reactions…
+  </p>
+  <button
+    class="button button--outline reaction-retry"
+    type="button"
+    data-reaction-retry
+    hidden
+  >
+    Try again
+  </button>
+  <noscript>
+    <p class="reaction-help">
+      Enable JavaScript to view and add shared reactions.
+    </p>
+  </noscript>
+</section>
+
+<script>
+  type Reaction = 'like' | 'helpful' | 'insightful';
+  interface ReactionState {
+    counts: Record<Reaction, number>;
+    selected: Reaction | null;
+  }
+  const reactionLabels: Record<Reaction, string> = {
+    like: 'Like',
+    helpful: 'Helpful',
+    insightful: 'Insightful',
+  };
+  const isReaction = (value: unknown): value is Reaction =>
+    typeof value === 'string' && Object.hasOwn(reactionLabels, value);
+  const isState = (value: unknown): value is ReactionState => {
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      !('counts' in value) ||
+      !('selected' in value)
+    )
+      return false;
+    if (value.selected !== null && !isReaction(value.selected)) return false;
+    const counts = value.counts;
+    if (!counts || typeof counts !== 'object') return false;
+    return (['like', 'helpful', 'insightful'] as const).every((reaction) => {
+      if (!(reaction in counts)) return false;
+      const count = (counts as Record<string, unknown>)[reaction];
+      return (
+        typeof count === 'number' && Number.isSafeInteger(count) && count >= 0
+      );
+    });
+  };
+
+  document
+    .querySelectorAll<HTMLElement>('[data-article-reactions]')
+    .forEach((section) => {
+      const article = section.dataset.article;
+      const actions = section.querySelector<HTMLElement>(
+        '[data-reaction-actions]',
+      );
+      const status = section.querySelector<HTMLElement>(
+        '[data-reaction-status]',
+      );
+      const retry = section.querySelector<HTMLButtonElement>(
+        '[data-reaction-retry]',
+      );
+      const buttons =
+        section.querySelectorAll<HTMLButtonElement>('[data-reaction]');
+      if (!article || !actions || !status || !retry || buttons.length === 0)
+        return;
+      let selected: Reaction | null = null;
+      let pending = false;
+      let loaded = false;
+      const endpoint = `/api/reactions?article=${encodeURIComponent(article)}`;
+      status.hidden = false;
+
+      const applyState = (state: ReactionState) => {
+        selected = state.selected;
+        loaded = true;
+        buttons.forEach((button) => {
+          const reaction = button.dataset.reaction;
+          const counter = button.querySelector<HTMLElement>(
+            '[data-reaction-count]',
+          );
+          if (!isReaction(reaction) || !counter) return;
+          const count = state.counts[reaction];
+          counter.textContent = String(count);
+          counter.hidden = false;
+          button.setAttribute('aria-pressed', String(selected === reaction));
+          button.setAttribute(
+            'aria-label',
+            `${reactionLabels[reaction]}, ${count} ${count === 1 ? 'reaction' : 'reactions'}`,
+          );
+        });
+        actions.hidden = false;
+        retry.hidden = true;
+      };
+
+      const request = async (reaction?: Reaction | null) => {
+        if (pending) return;
+        const saving = reaction !== undefined;
+        pending = true;
+        buttons.forEach((button) => {
+          button.disabled = true;
+        });
+        retry.hidden = true;
+        status.textContent = saving
+          ? 'Saving your reaction…'
+          : 'Loading reactions…';
+        section.setAttribute('aria-busy', 'true');
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 12000);
+        try {
+          const response = await fetch(endpoint, {
+            method: saving ? 'POST' : 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            signal: controller.signal,
+            ...(saving
+              ? {
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ article, reaction }),
+                }
+              : {}),
+          });
+          if (!response.ok) throw new Error('Reactions unavailable');
+          const state: unknown = await response.json();
+          if (!isState(state)) throw new Error('Invalid reaction response');
+          applyState(state);
+          status.textContent = saving
+            ? state.selected === null
+              ? 'Your reaction was removed.'
+              : `Your ${reactionLabels[state.selected].toLowerCase()} reaction was saved.`
+            : 'Reactions loaded. Select your reaction, or select it again to remove it.';
+        } catch {
+          loaded = false;
+          actions.hidden = true;
+          retry.hidden = false;
+          status.textContent = saving
+            ? 'Your reaction could not be confirmed. Try again to load the current totals.'
+            : 'Reactions are unavailable right now. Try again in a moment.';
+        } finally {
+          window.clearTimeout(timeout);
+          pending = false;
+          buttons.forEach((button) => {
+            button.disabled = !loaded;
+          });
+          section.setAttribute('aria-busy', 'false');
+        }
+      };
+
+      buttons.forEach((button) =>
+        button.addEventListener('click', () => {
+          const reaction = button.dataset.reaction;
+          if (!loaded || pending || !isReaction(reaction)) return;
+          void request(selected === reaction ? null : reaction);
+        }),
+      );
+      retry.addEventListener('click', () => {
+        void request();
+      });
+      void request();
+    });
+</script>
+
+<style>
+  .article-reactions {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+  }
+  h2 {
+    font-size: 1.4rem;
+    margin: 0 0 0.75rem;
+  }
+  .reaction-help {
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+    color: var(--color-muted);
+  }
+  .reaction-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .reaction-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-height: 44px;
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font: inherit;
+    cursor: pointer;
+  }
+  .reaction-button:hover {
+    border-color: var(--color-accent);
+  }
+  .reaction-button[aria-pressed='true'] {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-on-accent, #fff);
+  }
+  .reaction-button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+  }
+  .reaction-count {
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .reaction-status {
+    min-height: 1.5em;
+    margin: 0.85rem 0 0;
+    font-size: 0.9rem;
+  }
+  .reaction-retry {
+    margin-top: 0.75rem;
+  }
+  @media print {
+    .article-reactions {
+      display: none;
+    }
+  }
+</style>

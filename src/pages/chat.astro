@@ -1,0 +1,357 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { profile } from '../data/profile';
+---
+
+<BaseLayout
+  title="Chat — Vipul Gupta"
+  description="Leave Vipul a private message and return to this browser to read his reply."
+>
+  <div class="container chat-page">
+    <header class="page-header">
+      <p class="eyebrow">Say hello</p>
+      <h1 class="display">Let’s start a conversation.</h1>
+      <p class="lead">Leave a message. I’ll reply here when available.</p>
+    </header>
+    <section class="chat-panel" aria-labelledby="conversation-heading">
+      <div class="chat-toolbar">
+        <h2 id="conversation-heading">Your conversation</h2>
+        <button
+          class="button button--outline"
+          type="button"
+          id="refresh-chat"
+          hidden
+        >
+          Refresh replies
+        </button>
+      </div>
+      <p class="chat-note">
+        This conversation stays connected to this browser using a cookie. Return
+        here to read replies; clearing cookies or switching browsers starts a
+        new conversation. Please don’t send passwords or sensitive personal
+        information.
+      </p>
+      <p id="chat-empty" class="chat-empty">
+        Send a message about work, an article, or something you’d like to
+        discuss.
+      </p>
+      <ol
+        id="chat-messages"
+        class="chat-messages"
+        aria-label="Conversation messages"
+      ></ol>
+      <p
+        id="chat-status"
+        class="chat-status"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <form id="chat-form" hidden>
+        <label for="chat-message">Your message</label>
+        <textarea
+          id="chat-message"
+          name="message"
+          rows="4"
+          maxlength="2000"
+          required
+          placeholder="Hi Vipul…"
+        ></textarea>
+        <div class="composer-actions">
+          <span class="chat-note">
+            Up to 2,000 characters. No email needed.
+          </span>
+          <button class="button" type="submit" id="send-chat">
+            Send message
+          </button>
+        </div>
+      </form>
+      <noscript>
+        <p class="chat-note">
+          Enable JavaScript to use the website chat, or{' '}
+          <a href={profile.linkedin} rel="me">
+            reach out on LinkedIn
+          </a>
+          .
+        </p>
+      </noscript>
+    </section>
+    <p class="chat-alternative">
+      Prefer another way to connect?{' '}
+      <a href={profile.linkedin} rel="me">
+        Find me on LinkedIn
+      </a>
+      .
+    </p>
+  </div>
+</BaseLayout>
+
+<script>
+  type Message = {
+    id: number;
+    sender: 'visitor' | 'owner';
+    content: string;
+    createdAt: string;
+  };
+  type Conversation = { threadId: string | null; messages: Message[] };
+  const form = document.querySelector<HTMLFormElement>('#chat-form');
+  const input = document.querySelector<HTMLTextAreaElement>('#chat-message');
+  const send = document.querySelector<HTMLButtonElement>('#send-chat');
+  const refresh = document.querySelector<HTMLButtonElement>('#refresh-chat');
+  const transcript = document.querySelector<HTMLOListElement>('#chat-messages');
+  const empty = document.querySelector<HTMLElement>('#chat-empty');
+  const status = document.querySelector<HTMLElement>('#chat-status');
+
+  if (form && input && send && refresh && transcript && empty && status) {
+    form.hidden = false;
+    refresh.hidden = false;
+    let busy = false;
+    let hasConversation = false;
+    let lastSeenId = 0;
+    let initialLoad = true;
+    let poll: ReturnType<typeof setInterval> | undefined;
+
+    function updatePolling() {
+      if (poll !== undefined) clearInterval(poll);
+      poll = undefined;
+      if (hasConversation && !document.hidden && document.hasFocus()) {
+        poll = setInterval(() => {
+          if (!busy) void load(true);
+        }, 15000);
+      }
+    }
+
+    function render(conversation: Conversation) {
+      const hadMessages = lastSeenId > 0;
+      let newReply = false;
+      const fragment = document.createDocumentFragment();
+      for (const message of conversation.messages) {
+        const item = document.createElement('li');
+        item.className = `message message--${message.sender}`;
+        const author = document.createElement('strong');
+        author.textContent = message.sender === 'owner' ? 'Vipul' : 'You';
+        const content = document.createElement('p');
+        content.textContent = message.content;
+        const time = document.createElement('time');
+        time.dateTime = message.createdAt;
+        const date = new Date(message.createdAt);
+        time.textContent = Number.isNaN(date.getTime())
+          ? ''
+          : date.toLocaleString(undefined, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            });
+        item.append(author, content, time);
+        fragment.append(item);
+        if (message.id > lastSeenId && message.sender === 'owner')
+          newReply = true;
+      }
+      transcript!.replaceChildren(fragment);
+      empty!.hidden = conversation.messages.length > 0;
+      hasConversation = conversation.threadId !== null;
+      lastSeenId = Math.max(
+        lastSeenId,
+        ...conversation.messages.map((message) => message.id),
+      );
+      if (newReply && hadMessages)
+        status!.textContent =
+          'Vipul replied. Your conversation has been updated.';
+      updatePolling();
+    }
+
+    async function request(options?: RequestInit): Promise<Conversation> {
+      const response = await fetch('/api/chat', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        ...options,
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok)
+        throw new Error(
+          data?.message || 'Chat is unavailable right now. Please try again.',
+        );
+      if (!data || !Array.isArray(data.messages))
+        throw new Error('Chat is unavailable right now. Please try again.');
+      return data as Conversation;
+    }
+
+    async function load(quiet = false) {
+      if (busy) return;
+      busy = true;
+      refresh!.disabled = true;
+      send!.disabled = true;
+      if (!quiet) status!.textContent = 'Checking for messages…';
+      try {
+        const conversation = await request();
+        if (!quiet)
+          status!.textContent = conversation.messages.length
+            ? 'Your conversation is up to date.'
+            : 'Ready when you are.';
+        render(conversation);
+        initialLoad = false;
+      } catch (error) {
+        if (!quiet || initialLoad)
+          status!.textContent =
+            error instanceof Error
+              ? error.message
+              : 'Could not check messages. Please try again.';
+        else
+          status!.textContent =
+            'Could not refresh replies. Use Refresh replies to try again.';
+      } finally {
+        busy = false;
+        refresh!.disabled = false;
+        send!.disabled = false;
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const message = input.value.trim();
+      if (!message || busy) return;
+      busy = true;
+      send.disabled = true;
+      refresh.disabled = true;
+      input.readOnly = true;
+      status.textContent = 'Sending your message…';
+      try {
+        const conversation = await request({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message }),
+        });
+        render(conversation);
+        input.value = '';
+        status.textContent =
+          'Message saved. Come back to this browser to read my reply.';
+      } catch (error) {
+        status.textContent =
+          error instanceof Error
+            ? error.message
+            : 'Your message could not be sent. Please try again.';
+      } finally {
+        busy = false;
+        send.disabled = false;
+        refresh.disabled = false;
+        input.readOnly = false;
+      }
+    });
+    refresh.addEventListener('click', () => {
+      void load();
+    });
+    document.addEventListener('visibilitychange', updatePolling);
+    window.addEventListener('focus', () => {
+      updatePolling();
+      if (hasConversation && !busy) void load(true);
+    });
+    window.addEventListener('blur', updatePolling);
+    window.addEventListener('pagehide', () => {
+      if (poll !== undefined) clearInterval(poll);
+    });
+    void load();
+  }
+</script>
+
+<style>
+  .chat-page {
+    max-width: 900px;
+    padding-bottom: 5rem;
+  }
+  .chat-panel {
+    padding: clamp(1.2rem, 4vw, 2rem);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+  .chat-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .chat-toolbar h2 {
+    font-size: 1.7rem;
+  }
+  .chat-toolbar button {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.8rem;
+  }
+  .chat-note {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+  .chat-panel > .chat-note {
+    margin-top: 1rem;
+  }
+  .chat-empty {
+    padding: 2rem 0 1rem;
+    color: var(--color-muted);
+  }
+  .chat-messages {
+    padding: 0;
+    margin: 1.5rem 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .chat-messages :global(.message) {
+    width: min(90%, 600px);
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    overflow-wrap: anywhere;
+  }
+  .chat-messages :global(.message--visitor) {
+    align-self: flex-end;
+    background: var(--color-sage);
+  }
+  .chat-messages :global(.message strong) {
+    font-size: 0.85rem;
+  }
+  .chat-messages :global(.message p) {
+    white-space: pre-wrap;
+    margin-top: 0.3rem;
+  }
+  .chat-messages :global(.message time) {
+    display: block;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+  }
+  .chat-status {
+    min-height: 1.8rem;
+    margin: 1rem 0;
+    color: var(--color-muted);
+  }
+  form label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  textarea {
+    width: 100%;
+    resize: vertical;
+    padding: 0.85rem;
+    color: var(--color-ink);
+    background: var(--color-bg);
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius);
+  }
+  .composer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.8rem;
+    flex-wrap: wrap;
+  }
+  .chat-alternative {
+    margin-top: 1.5rem;
+    color: var(--color-muted);
+  }
+  [hidden] {
+    display: none !important;
+  }
+</style>

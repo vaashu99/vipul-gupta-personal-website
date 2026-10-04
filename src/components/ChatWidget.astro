@@ -1,0 +1,61 @@
+---
+const chatPage =
+  Astro.url.pathname === '/chat/' || Astro.url.pathname === '/chat';
+const inboxPage =
+  Astro.url.pathname === '/inbox/' || Astro.url.pathname === '/inbox';
+---
+
+{!chatPage && !inboxPage && (
+  <nav class="chat-entry" aria-label="Contact Vipul">
+    <a class="chat-widget" href="/chat/" aria-label="Chat with Vipul">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        width="20"
+        height="20"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+      >
+        <path d="M20 11a8 8 0 0 1-8 8H4v-8a8 8 0 1 1 16 0Z" />
+        <path d="M8 10h8M8 14h5" />
+      </svg>
+      Chat with me
+    </a>
+  </nav>
+)}
+
+<style>
+  .chat-widget {
+    position: fixed;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 100px;
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    box-shadow: 0 4px 16px #0002;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .chat-widget:hover {
+    background: var(--color-accent-hover);
+    color: var(--color-on-accent);
+  }
+  @media (max-width: 600px) {
+    .chat-widget {
+      padding: 0.6rem 0.85rem;
+      font-size: 0.9rem;
+    }
+  }
+  @media print {
+    .chat-entry {
+      display: none;
+    }
+  }
+</style>

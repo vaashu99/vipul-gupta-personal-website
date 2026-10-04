@@ -1,32 +1,23 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "vipul-gupta-personal-website",
+  "name": "vipul-gupta-personal-website-local",
   "main": "workers/index.ts",
   "compatibility_date": "2026-10-04",
-  "keep_vars": true,
-  "workers_dev": true,
-  "preview_urls": true,
-  "routes": [
-    {
-      "pattern": "vipulgupta.tech",
-      "custom_domain": true,
-    },
-  ],
-  "build": {
-    "command": "npm run build",
-  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "run_worker_first": true,
     "not_found_handling": "404-page",
   },
+  "vars": { "LOCAL_OWNER_PREVIEW": "true" },
   "d1_databases": [
     {
       "binding": "SITE_DB",
-      "database_name": "vipul-personal-website",
-      "database_id": "ff56037c-b037-4b4b-bf49-c689988d3d53",
+      "database_name": "vipul-site-local",
+      "database_id": "00000000-0000-4000-8000-000000000000",
       "migrations_dir": "migrations",
+      "remote": false,
     },
   ],
+  // Local-only database identifier; never deploy with this configuration.
 }

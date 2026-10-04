@@ -1,0 +1,250 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const categories = [
+  { id: 'all', label: 'All' },
+  { id: 'engineering', label: 'Engineering' },
+  { id: 'community', label: 'Community' },
+  { id: 'learning', label: 'Learning' },
+];
+const categoryLabels = Object.fromEntries(
+  categories.map(({ id, label }) => [id, label]),
+);
+const now = Date.now();
+const entries = (
+  await getCollection(
+    'tech',
+    ({ data }) => !data.draft && data.publishedAt.getTime() <= now,
+  )
+).sort(
+  (a, b) =>
+    b.data.publishedAt.getTime() - a.data.publishedAt.getTime() ||
+    a.id.localeCompare(b.id),
+);
+const formatDate = (date: Date) =>
+  new Intl.DateTimeFormat('en-SG', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Singapore',
+  }).format(date);
+const articlePath = (id: string) =>
+  `/tech/${id.split('/').map(encodeURIComponent).join('/')}/`;
+---
+
+<BaseLayout
+  title="Tech | Vipul Gupta"
+  description="Professional writing, community conversations and learning milestones from Vipul Gupta, a site reliability engineer in Singapore."
+>
+  <section class="container page-header">
+    <p class="eyebrow">Engineering · Community · Learning</p>
+    <h1 class="display">Notes from the work.</h1>
+    <p class="lead tech-intro">
+      A place for professional writing, community conversations and learning
+      along the way. Ideas and milestones from my life in engineering.
+    </p>
+  </section>
+
+  <section class="container tech-content" aria-label="Tech articles">
+    <div
+      class="filter-bar"
+      role="group"
+      aria-label="Filter Tech by category"
+      data-tech-filters
+      hidden
+    >
+      {categories.map((category) => (
+        <button
+          class="filter-button"
+          type="button"
+          data-tech-filter={category.id}
+          aria-pressed={category.id === 'all' ? 'true' : 'false'}
+          aria-controls="tech-results"
+        >
+          {category.label}
+        </button>
+      ))}
+    </div>
+    <p
+      class="eyebrow tech-status"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      data-tech-status
+    >
+      {entries.length} {entries.length === 1 ? 'article' : 'articles'}{' '}
+      published.
+    </p>
+    <div id="tech-results">
+      <div class="tech-grid">
+        {entries.map((entry) => (
+          <article
+            class="card tech-card"
+            data-tech-entry
+            data-category={entry.data.category}
+          >
+            {entry.data.coverImage && (
+              <img
+                class="tech-cover"
+                src={entry.data.coverImage}
+                alt={entry.data.coverAlt}
+                loading="lazy"
+                width="960"
+                height="640"
+              />
+            )}
+            <div class="tech-card-content">
+              <div class="tech-card-meta">
+                <span class="tag">{categoryLabels[entry.data.category]}</span>
+                <time datetime={entry.data.publishedAt.toISOString()}>
+                  {formatDate(entry.data.publishedAt)}
+                </time>
+              </div>
+              <h2>
+                <a href={articlePath(entry.id)}>{entry.data.title}</a>
+              </h2>
+              <p>{entry.data.description}</p>
+              <a
+                class="text-link"
+                href={articlePath(entry.id)}
+                aria-label={`Read article: ${entry.data.title}`}
+              >
+                Read article <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div class="card empty-state" data-tech-empty hidden={entries.length > 0}>
+        <h2 class="empty-state-title">More to come.</h2>
+        <p class="empty-state-copy">
+          There are no published articles in this category yet. Explore another
+          category to keep reading.
+        </p>
+      </div>
+    </div>
+    <p class="tech-footnote">
+      Looking for life beyond work?{' '}
+      <a class="text-link" href="/journal/">
+        Visit the personal journal <span aria-hidden="true">↗</span>
+      </a>
+    </p>
+  </section>
+</BaseLayout>
+
+<script>
+  const emptyMessages: Record<string, string> = {
+    all: 'No articles published yet.',
+    engineering: 'No engineering articles published yet.',
+    community: 'No community articles published yet.',
+    learning: 'No learning articles published yet.',
+  };
+  const filters = document.querySelector<HTMLElement>('[data-tech-filters]');
+  const status = document.querySelector<HTMLElement>('[data-tech-status]');
+  const empty = document.querySelector<HTMLElement>('[data-tech-empty]');
+  const buttons =
+    document.querySelectorAll<HTMLButtonElement>('[data-tech-filter]');
+  const cards = document.querySelectorAll<HTMLElement>('[data-tech-entry]');
+  if (filters && status && empty) {
+    const selectCategory = (requested: string) => {
+      const category = Object.hasOwn(emptyMessages, requested)
+        ? requested
+        : 'all';
+      let count = 0;
+      cards.forEach((card) => {
+        card.hidden = category !== 'all' && card.dataset.category !== category;
+        if (!card.hidden) count += 1;
+      });
+      buttons.forEach((button) =>
+        button.setAttribute(
+          'aria-pressed',
+          String(button.dataset.techFilter === category),
+        ),
+      );
+      empty.hidden = count > 0;
+      status.textContent =
+        count > 0
+          ? `${count} ${count === 1 ? 'article' : 'articles'} shown.`
+          : emptyMessages[category];
+    };
+    selectCategory(window.location.hash.slice(1));
+    filters.hidden = false;
+    buttons.forEach((button) =>
+      button.addEventListener('click', () => {
+        const category = button.dataset.techFilter ?? 'all';
+        if (window.location.hash !== `#${category}`)
+          window.history.pushState(null, '', `#${category}`);
+        selectCategory(category);
+      }),
+    );
+    window.addEventListener('hashchange', () =>
+      selectCategory(window.location.hash.slice(1)),
+    );
+  }
+</script>
+
+<style>
+  .tech-content {
+    padding-bottom: clamp(4rem, 9vw, 7rem);
+  }
+  .tech-intro {
+    max-width: 44rem;
+  }
+  .tech-status {
+    margin-block: 1.75rem;
+    letter-spacing: 0.08em;
+  }
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  .tech-card {
+    padding: 0;
+    overflow: hidden;
+  }
+  .tech-card-content {
+    padding: 1.75rem;
+  }
+  .tech-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+  }
+  .tech-card h2 {
+    margin-block: 1rem 0.75rem;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    line-height: 1.3;
+  }
+  .tech-card h2 a {
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+  }
+  .tech-card p {
+    margin-block: 0 1.25rem;
+  }
+  .tech-cover {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+  }
+  .tech-footnote {
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 0.95rem;
+  }
+  @media (max-width: 640px) {
+    .tech-grid {
+      grid-template-columns: 1fr;
+    }
+    .tech-card-content {
+      padding: 1.25rem;
+    }
+  }
+</style>

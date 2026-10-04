@@ -1,0 +1,111 @@
+---
+const animatedImage = '/images/devops-pipeline.gif';
+const staticImage = '/images/devops-pipeline-still.png';
+---
+
+<figure class="devops-animation print-hidden" data-devops-animation>
+  <picture>
+    <source
+      media="(prefers-reduced-motion: reduce), print"
+      srcset={staticImage}
+    />
+    <img
+      id="devops-pipeline-image"
+      src={staticImage}
+      data-animated-src={animatedImage}
+      data-static-src={staticImage}
+      width="960"
+      height="240"
+      alt="Illustrated DevOps cycle: code, build, deploy, and observe, with feedback returning to code."
+      decoding="async"
+    />
+  </picture>
+  <figcaption>
+    <span>An illustration of a DevOps workflow.</span>
+    <button
+      class="animation-control"
+      type="button"
+      aria-controls="devops-pipeline-image"
+      aria-pressed="false"
+      data-animation-toggle
+      hidden
+    >
+      Pause animation
+    </button>
+  </figcaption>
+</figure>
+
+<script>
+  const container = document.querySelector('[data-devops-animation]');
+  const image = container?.querySelector('img');
+  const toggle = container?.querySelector<HTMLButtonElement>(
+    '[data-animation-toggle]',
+  );
+  const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let paused = false;
+
+  function updateAnimation() {
+    if (!image || !toggle) return;
+    const stopped = preference.matches || paused;
+    image.src = stopped ? image.dataset.staticSrc! : image.dataset.animatedSrc!;
+    toggle.disabled = preference.matches;
+    toggle.hidden = preference.matches;
+    toggle.setAttribute('aria-pressed', String(stopped));
+    toggle.textContent = stopped ? 'Resume animation' : 'Pause animation';
+  }
+
+  toggle?.addEventListener('click', () => {
+    if (preference.matches) return;
+    paused = !paused;
+    updateAnimation();
+  });
+  preference.addEventListener('change', updateAnimation);
+  updateAnimation();
+</script>
+
+<style>
+  .devops-animation {
+    margin: 0 0 1.5rem;
+  }
+  picture {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    background: #0d141b;
+  }
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.85rem 0.15rem;
+    color: var(--color-muted);
+    font-size: 0.8rem;
+  }
+  .animation-control {
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.5rem 0.8rem;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font: inherit;
+    cursor: pointer;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animation-control {
+      display: none;
+    }
+  }
+  @media print {
+    .devops-animation {
+      display: none;
+    }
+  }
+</style>

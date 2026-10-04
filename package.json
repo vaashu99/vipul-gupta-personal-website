@@ -1,0 +1,36 @@
+{
+  "name": "vipul-gupta-personal-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1",
+    "build": "astro build",
+    "preview": "astro preview --host 127.0.0.1",
+    "check": "astro check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "playwright test",
+    "deploy": "wrangler deploy",
+    "test:journal": "node tests/run-journal-tests.mjs",
+    "db:local": "wrangler d1 migrations apply vipul-site-local --local --config wrangler.local.jsonc",
+    "preview:full": "npm run build && npm run db:local && wrangler dev --local --config wrangler.local.jsonc --ip 127.0.0.1 --port 4321",
+    "test:interactions": "node scripts/test-interactions.mjs"
+  },
+  "dependencies": {
+    "astro": "7.3.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.1",
+    "prettier": "3.9.9",
+    "prettier-plugin-astro": "1.1.0",
+    "typescript": "6.0.3",
+    "wrangler": "4.147.0"
+  }
+}
