@@ -765,19 +765,20 @@ for (const theme of themes) {
       test(`accessibility: ${theme} ${route} at ${width}px has no axe violations`, async ({
         page,
       }) => {
+        // Audit the rendered palette; chooser transitions have separate coverage.
+        await page.addInitScript(
+          (value) => localStorage.setItem('vipulgupta.theme', value),
+          theme,
+        );
         await page.setViewportSize({ width, height: 900 });
         await page.goto(route);
         if (width < 1100)
           await page
             .getByRole('button', { name: 'Open navigation', exact: true })
             .click();
-        await page.getByLabel('Theme', { exact: true }).selectOption(theme);
-        await page.evaluate(() =>
-          Promise.all(
-            document
-              .getAnimations()
-              .map((animation) => animation.finished.catch(() => {})),
-          ),
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await expect(page.getByLabel('Theme', { exact: true })).toHaveValue(
+          theme,
         );
         const results = await new AxeBuilder({ page })
           .withTags([
@@ -1574,3 +1575,156 @@ for (const contactType of ['email', 'phone', 'unsafe', 'legacy'] as const) {
     await expect(page.getByLabel('Your reply', { exact: true })).toBeVisible();
   });
 }
+
+const nusCertificatePath = '/images/nus-ai-solutions/certificate.png';
+const nusCourseURL =
+  'https://www.iss.nus.edu.sg/executive-education/course/detail/deploying-and-operating-ai-solutions/artificial-intelligence';
+const nusLearningURL = 'https://sg.linkedin.com/in/vipul-gupta-tech';
+
+for (const palette of themes) {
+  for (const width of widths) {
+    test(`NUS complete certificate retains its full frame in ${palette} at ${width}px`, async ({
+      page,
+      request,
+    }) => {
+      await page.addInitScript(
+        (theme) => localStorage.setItem('vipulgupta.theme', theme),
+        palette,
+      );
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/tech/nus-ai-solutions/');
+      const certificate = page.locator(
+        `.article-prose img[src="${nusCertificatePath}"]`,
+      );
+      await expect(certificate).toHaveCount(1);
+      await certificate.scrollIntoViewIfNeeded();
+      await expect(certificate).toBeVisible();
+      await expect(certificate).toHaveAttribute('width', '1284');
+      await expect(certificate).toHaveAttribute('height', '1812');
+      await expect(certificate).toHaveAttribute(
+        'alt',
+        /certificate.+NUS|NUS.+certificate|certificate.+completion/i,
+      );
+      const dimensions = await certificate.evaluate(async (element) => {
+        const image = element as HTMLImageElement;
+        await image.decode();
+        const bitmap = await createImageBitmap(
+          await (await fetch(image.currentSrc)).blob(),
+        );
+        const box = image.getBoundingClientRect();
+        let clipped = false;
+        for (
+          let parent = image.parentElement;
+          parent && parent.tagName !== 'MAIN';
+          parent = parent.parentElement
+        ) {
+          const style = getComputedStyle(parent);
+          const bounds = parent.getBoundingClientRect();
+          if (
+            ['hidden', 'clip'].includes(style.overflowX) &&
+            (box.left < bounds.left - 1 || box.right > bounds.right + 1)
+          )
+            clipped = true;
+          if (
+            ['hidden', 'clip'].includes(style.overflowY) &&
+            (box.top < bounds.top - 1 || box.bottom > bounds.bottom + 1)
+          )
+            clipped = true;
+        }
+        const result = {
+          pixels: [bitmap.width, bitmap.height],
+          width: box.width,
+          height: box.height,
+          left: box.left,
+          right: box.right,
+          fit: getComputedStyle(image).objectFit,
+          clipped,
+        };
+        bitmap.close();
+        return result;
+      });
+      expect(dimensions.pixels).toEqual([1284, 1812]);
+      expect(dimensions.width).toBeGreaterThan(200);
+      expect(dimensions.left).toBeGreaterThanOrEqual(0);
+      expect(dimensions.right).toBeLessThanOrEqual(width + 1);
+      expect(
+        Math.abs(dimensions.width / dimensions.height - 1284 / 1812),
+      ).toBeLessThan(0.001);
+      expect(dimensions.fit).not.toBe('cover');
+      expect(dimensions.clipped).toBe(false);
+      const figure = certificate.locator('xpath=ancestor::figure');
+      await expect(figure.locator('figcaption')).toContainText(
+        /6(?:\s*[-–]\s*|\s+to\s+)8 July 2026/,
+      );
+      const asset = await request.get(nusCertificatePath);
+      expect(asset.status()).toBe(200);
+      expect(asset.headers()['content-type']).toContain('image/png');
+      const bytes = await asset.body();
+      expect(Array.from(bytes.subarray(0, 8))).toEqual([
+        137, 80, 78, 71, 13, 10, 26, 10,
+      ]);
+      const chunks: string[] = [];
+      for (let cursor = 8; cursor + 12 <= bytes.length;) {
+        const size = bytes.readUInt32BE(cursor);
+        chunks.push(bytes.subarray(cursor + 4, cursor + 8).toString('ascii'));
+        cursor += 12 + size;
+      }
+      expect(
+        chunks.filter((chunk) =>
+          ['eXIf', 'iCCP', 'tEXt', 'zTXt', 'iTXt'].includes(chunk),
+        ),
+      ).toEqual([]);
+    });
+  }
+}
+
+test('NUS short-course dates, source links and keyboard full-size certificate remain distinct from publication metadata', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/tech/nus-ai-solutions/');
+  await expect(page.locator('main h1')).toHaveText(
+    'Completing Deploying and Operating AI Solutions at NUS',
+  );
+  const article = page.locator('.article-prose');
+  await expect(article).toContainText(/6(?:\s*[-–]\s*|\s+to\s+)8 July 2026/);
+  await expect(article).toContainText(/Certificate of Completion/i);
+  await expect(article).toContainText(
+    /publication date on my website|website publication date/,
+  );
+  expect(await article.innerText()).not.toMatch(
+    /I\s+(?:earned|completed|received|was awarded)\s+(?:an?\s+)?(?:graduate certificate|(?:master'?s|bachelor'?s|doctoral)\s+degree)/i,
+  );
+  await expect(page.locator('time[datetime]').first()).toHaveAttribute(
+    'datetime',
+    /^2026-10-03T16:00:00/,
+  );
+  for (const href of [nusCourseURL, nusLearningURL]) {
+    const link = article.locator(`a[href="${href}"]`);
+    await expect(link).toHaveCount(1);
+    await expect(link).not.toHaveAccessibleName('');
+  }
+  await expect(
+    page.getByRole('region', { name: 'Share this article' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'React to this article' }),
+  ).toBeVisible();
+  const full = article.locator(`a[href="${nusCertificatePath}"]`).first();
+  await expect(full).toBeVisible();
+  await expect(full).not.toHaveAccessibleName('');
+  await full.focus();
+  if ((await full.getAttribute('target')) === '_blank') {
+    const popupPromise = context.waitForEvent('page');
+    await page.keyboard.press('Enter');
+    const popup = await popupPromise;
+    await popup.waitForLoadState('domcontentloaded');
+    expect(new URL(popup.url()).pathname).toBe(nusCertificatePath);
+    await popup.close();
+  } else {
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(
+      new RegExp(`${nusCertificatePath.replaceAll('.', '\\.')}$`),
+    );
+  }
+});
