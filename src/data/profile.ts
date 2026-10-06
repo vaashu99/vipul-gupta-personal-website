@@ -35,7 +35,9 @@ export const experience: CareerRole[] = [
     end: 'present',
     bullets: [
       'Drive automation initiatives for infrastructure operations and application deployment, including GitOps workflows using Argo CD and Terraform.',
-      'Build secure infrastructure for AI solutions and application runtimes spanning data science, MLOps, Go, and Python.',
+      'Build and operate secure infrastructure for AI services and agent runtimes, supporting resilient deployments for data science, MLOps, Go, and Python workloads.',
+      'Develop platform capabilities for AI gateways, request controls, and service observability through metrics, tracing, and logs.',
+      'Support AI platform operations with model access controls, identity and access management, and visibility into token usage and spend.',
       'Establish infrastructure governance standards with Compliance and Security teams to implement security controls and meet audit requirements.',
       'Lead migration projects, including GitLab and Jira Service Management, from strategic planning through delivery.',
       'Partner with cross-functional stakeholders to align infrastructure roadmaps with business goals and deliver complex integrations.',
@@ -123,6 +125,15 @@ export const skillGroups: SkillGroup[] = [
   {
     title: 'Systems & observability',
     skills: ['Linux', 'Networking', 'Istio', 'Prometheus', 'Grafana'],
+  },
+  {
+    title: 'AI platform operations',
+    skills: [
+      'LLMOps',
+      'AI gateways',
+      'Model access controls',
+      'AI observability',
+    ],
   },
   {
     title: 'Data platforms',
